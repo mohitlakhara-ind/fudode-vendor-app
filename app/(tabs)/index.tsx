@@ -1,98 +1,480 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { FilterPill } from '@/components/orders/FilterPill';
+import { NewOrderSheet } from '@/components/orders/NewOrderSheet';
+import { OrderCard } from '@/components/orders/OrderCard';
+import { OrderConfirmationSheet } from '@/components/orders/OrderConfirmationSheet';
+import { OrderStackOverlay } from '@/components/orders/OrderStackOverlay';
+import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
+import { RestaurantSwitcher } from '@/components/orders/RestaurantSwitcher';
+import { SearchBar } from '@/components/orders/SearchBar';
+import { Colors, StatusColors, Typography } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { IncomingOrder, useOrderQueue } from '@/hooks/useOrderQueue';
+import { RootState } from '@/store/store';
+import { useRouter } from 'expo-router';
+import {
+  CheckCircle,
+  ClockAfternoon,
+  CookingPot,
+  SealCheck,
+  Sparkle,
+  XCircle
+} from 'phosphor-react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Dimensions, FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-export default function HomeScreen() {
+const FILTERS = [
+  { label: 'Preparing', icon: CookingPot, color: StatusColors.Preparing },
+  { label: 'Ready', icon: CheckCircle, color: StatusColors.Ready },
+  { label: 'Late', icon: ClockAfternoon, color: StatusColors.Late },
+  { label: 'Completed', icon: SealCheck, color: StatusColors.Completed },
+  { label: 'Cancelled', icon: XCircle, color: StatusColors.Cancelled },
+  { label: 'All', icon: Sparkle, color: StatusColors.All },
+];
+
+const OWNED_RESTAURANTS = [
+  { id: '1', name: 'The Gourmet Kitchen', locality: 'Indiranagar, Bangalore' },
+  { id: '2', name: 'Pizza Palace', locality: 'HSR Layout, Bangalore' },
+  { id: '3', name: 'Sushi Zen', locality: 'Koramangala, Bangalore' },
+];
+
+const MOCK_ORDERS = [
+  {
+    id: '8223',
+    status: 'New',
+    customerName: 'Amit Kumar',
+    items: [
+      {
+        name: 'Margerita Pizza',
+        quantity: 1,
+        price: 350,
+        addons: [
+          { name: 'Extra Cheese', price: 50 },
+          { name: 'Thin Crust', price: 30 }
+        ]
+      },
+      { name: 'Garlic Bread', quantity: 1, price: 80 }
+    ],
+    subtotal: '510',
+    taxes: '25',
+    total: '535',
+    time: '1 min ago',
+    paymentMethod: 'UPI' as const,
+    specialInstructions: 'Make it extra spicy',
+    offer: {
+      title: '10% Off on Orders Above ₹500',
+      subtitle: 'Flat discount applied',
+      coupon: 'SAVE10',
+      discount: '50'
+    }
+  },
+  {
+    id: '8224',
+    status: 'New',
+    customerName: 'Sanjana Reddy',
+    items: [
+      { name: 'Veg Hakka Noodles', quantity: 1, price: 180 },
+      { name: 'Chilli Paneer', quantity: 1, price: 220 }
+    ],
+    subtotal: '400',
+    taxes: '20',
+    total: '420',
+    time: 'Just now',
+    paymentMethod: 'UPI' as const,
+    expiresAt: Date.now() + 240000, // 4 min
+  },
+  {
+    id: '8225',
+    status: 'New',
+    customerName: 'Kunal Shah',
+    items: [
+      { name: 'Chicken Biryani', quantity: 1, price: 320 }
+    ],
+    subtotal: '320',
+    taxes: '16',
+    total: '336',
+    time: '2 mins ago',
+    paymentMethod: 'UPI' as const,
+  },
+  {
+    id: '8226',
+    status: 'New',
+    customerName: 'Deepak Hooda',
+    items: [
+      { name: 'Cold Coffee', quantity: 2, price: 120 }
+    ],
+    subtotal: '240',
+    taxes: '12',
+    total: '252',
+    time: '5 mins ago',
+    paymentMethod: 'UPI' as const,
+  },
+  {
+    id: '8219',
+    status: 'Preparing',
+    customerName: 'Rahul Sharma',
+    items: [
+      {
+        name: 'Paneer Tikka',
+        quantity: 2,
+        price: 200,
+        addons: [{ name: 'Extra Mint Chutney', price: 0 }]
+      },
+      { name: 'Butter Naan', quantity: 1, price: 40 },
+      { name: 'Jeera Rice', quantity: 1, price: 160 }
+    ],
+    subtotal: '600',
+    taxes: '35',
+    packagingCharge: '15',
+    total: '650',
+    time: '4 mins ago',
+    paymentMethod: 'Card' as const,
+    deliveryBoy: {
+      name: 'Suresh Raina',
+      phone: '9876543210',
+      comingIn: '8 mins'
+    },
+    createdAt: Date.now() - 240000, // 4 min ago
+    estimatedReadyTime: Date.now() + 600000, // 10 min
+  },
+  {
+    id: '8220',
+    status: 'Delayed',
+    customerName: 'Anjali Gupta',
+    items: [
+      { name: 'Dal Makhani', quantity: 1, price: 280 },
+      { name: 'Garlic Roti', quantity: 2, price: 50 },
+      { name: 'Boondi Raita', quantity: 1, price: 40 }
+    ],
+    subtotal: '370',
+    taxes: '30',
+    packagingCharge: '20',
+    total: '420',
+    time: '12 mins ago',
+    paymentMethod: 'COD' as const,
+    specialInstructions: 'Doorbell is not working, please call',
+    deliveryBoy: {
+      name: 'Hardik Pandya',
+      phone: '9876543211',
+      comingIn: '2 mins'
+    },
+    createdAt: Date.now() - 720000, // 12 min ago
+    estimatedReadyTime: Date.now() - 300000, // 5 min ago (Delayed)
+  },
+  {
+    id: '8221',
+    status: 'Ready',
+    customerName: 'Vikram Singh',
+    items: [
+      { name: 'Veg Biryani', quantity: 3, price: 280 },
+      { name: 'Salan', quantity: 2, price: 40 },
+      { name: 'Coke (500ml)', quantity: 1, price: 60 }
+    ],
+    subtotal: '900',
+    taxes: '60',
+    packagingCharge: '20',
+    total: '980',
+    time: 'Just now',
+    paymentMethod: 'UPI' as const,
+    deliveryBoy: {
+      name: 'Virat Kohli',
+      phone: '9876543212',
+      comingIn: 'Already Arrived'
+    }
+  },
+  {
+    id: '8222',
+    status: 'Preparing',
+    customerName: 'Priya Verma',
+    items: [
+      { name: 'Chicken Curry', quantity: 1, price: 550 },
+      { name: 'Naan', quantity: 2, price: 60 }
+    ],
+    subtotal: '670',
+    taxes: '50',
+    packagingCharge: '30',
+    total: '750',
+    time: '8 mins ago',
+    createdAt: Date.now() - 480000, // 8 min ago
+    estimatedReadyTime: Date.now() + 300000, // 5 min
+  },
+];
+
+export default function LiveOrdersScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { colorScheme } = useAppTheme();
+  const theme = Colors[colorScheme];
+  const isDark = colorScheme === 'dark';
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+
+  const [activeFilter, setActiveFilter] = useState('Preparing');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isOnline, setIsOnline] = useState(true);
+  const [currentRestaurant, setCurrentRestaurant] = useState(OWNED_RESTAURANTS[0]);
+  const [isSwitcherVisible, setIsSwitcherVisible] = useState(false);
+
+  // Multi-Order Queue hook
+  const { queue, addOrder, removeOrder } = useOrderQueue();
+
+  // New Order Popup States
+  const [activeNewOrder, setActiveNewOrder] = useState<any>(null);
+  const [showNewOrderSheet, setShowNewOrderSheet] = useState(false);
+  const [showConfirmationSheet, setShowConfirmationSheet] = useState(false);
+
+  const pagerRef = useRef<FlatList>(null);
+  const filterScrollRef = useRef<ScrollView>(null);
+
+  const handleFilterPress = (filterLabel: string, index: number) => {
+    setActiveFilter(filterLabel);
+    pagerRef.current?.scrollToIndex({ index, animated: true });
+  };
+
+  useEffect(() => {
+    // Sync MOCK_ORDERS with the stack queue
+    MOCK_ORDERS.forEach(order => {
+      if (order.status === 'New') {
+        addOrder({
+          id: order.id,
+          customerName: order.customerName,
+          itemSummary: `${order.items.length} items • ₹${order.total}`,
+          items: order.items,
+          expiresAt: (order as any).expiresAt || Date.now() + 300000, // 5 min
+          createdAt: Date.now() - (parseInt(order.id) % 100 * 1000), // Fake past time
+          priority: order.id === '8223' ? 'high' : 'normal'
+        });
+      }
+    });
+  }, [addOrder]);
+
+  const handleOpenOrder = (incomingOrder: IncomingOrder) => {
+    const fullOrder = MOCK_ORDERS.find(o => o.id === incomingOrder.id);
+
+    if (fullOrder) {
+      setActiveNewOrder(fullOrder);
+      setShowNewOrderSheet(true);
+    }
+  };
+
+  useEffect(() => {
+    // Scroll filter pill into view when activeFilter changes
+    const index = FILTERS.findIndex(f => f.label === activeFilter);
+    if (index !== -1) {
+      filterScrollRef.current?.scrollTo({ x: index * 80, animated: true });
+    }
+  }, [activeFilter]);
+
+  const getFilteredOrders = (filterLabel: string) => {
+    return MOCK_ORDERS.filter(order => {
+      const matchesFilter = filterLabel === 'All' || order.status === filterLabel || (filterLabel === 'Late' && order.status === 'Delayed');
+      const matchesSearch = order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) || order.id.includes(searchQuery);
+      return matchesFilter && matchesSearch;
+    });
+  };
+
+  const getOrderCount = (filterLabel: string) => {
+    return MOCK_ORDERS.filter(order =>
+      filterLabel === 'All' || order.status === filterLabel || (filterLabel === 'Late' && order.status === 'Delayed')
+    ).length;
+  };
+
+  const isBottomSheetOpen = showNewOrderSheet || showConfirmationSheet;
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+      {/* DECORATIVE BACKGROUND FOR GLASSY POP */}
+      <View style={[styles.bgCircle, { backgroundColor: theme.primary, opacity: isDark ? 0.05 : 0.03, left: -100, top: -100 }]} />
+      <View style={[styles.bgCircle, { backgroundColor: theme.secondary, opacity: isDark ? 0.05 : 0.03, right: -150, top: 200 }]} />
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <RestaurantHeader
+        restaurantName={currentRestaurant.name}
+        locality={currentRestaurant.locality}
+        isOnline={isOnline}
+        onToggleStatus={() => setIsOnline(!isOnline)}
+        onPressInfo={() => setIsSwitcherVisible(true)}
+      />
+
+      <RestaurantSwitcher
+        visible={isSwitcherVisible}
+        onClose={() => setIsSwitcherVisible(false)}
+        restaurants={OWNED_RESTAURANTS}
+        selectedId={currentRestaurant.id}
+        onSelect={(res) => {
+          setCurrentRestaurant(res);
+          setIsSwitcherVisible(false);
+        }}
+      />
+
+      <SearchBar
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+      />
+
+      {/* FILTERS */}
+      <View style={styles.filterSection}>
+        <ScrollView
+          ref={filterScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterScroll}
+        >
+          {FILTERS.map((filter, index) => (
+            <FilterPill
+              key={filter.label}
+              label={filter.label}
+              isActive={activeFilter === filter.label}
+              color={filter.color}
+              count={getOrderCount(filter.label)}
+              onPress={() => handleFilterPress(filter.label, index)}
+              icon={
+                <filter.icon
+                  size={18}
+                  color={activeFilter === filter.label ? filter.color : theme.icon}
+                  weight={activeFilter === filter.label ? "fill" : "bold"}
+                />
+              }
+            />
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* ORDERS PAGER */}
+      <FlatList
+        ref={pagerRef}
+        data={FILTERS}
+        keyExtractor={item => item.label}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(e) => {
+          const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+          if (FILTERS[index]) {
+            setActiveFilter(FILTERS[index].label);
+          }
+        }}
+        getItemLayout={(_, index) => ({
+          length: SCREEN_WIDTH,
+          offset: SCREEN_WIDTH * index,
+          index,
+        })}
+        renderItem={({ item: filter }) => (
+          <View style={{ width: SCREEN_WIDTH }}>
+            <FlatList
+              data={getFilteredOrders(filter.label)}
+              keyExtractor={item => item.id}
+
+              renderItem={({ item }) => (
+                <OrderCard
+                  id={item.id}
+                  status={item.status as any}
+                  customerName={item.customerName}
+                  items={item.items as any}
+                  subtotal={item.subtotal}
+                  taxes={item.taxes}
+                  packagingCharge={item.packagingCharge}
+                  total={item.total}
+                  time={item.time}
+                  paymentMethod={item.paymentMethod as any}
+                  specialInstructions={item.specialInstructions}
+                  offer={(item as any).offer}
+                  deliveryBoy={(item as any).deliveryBoy}
+                  estimatedReadyTime={(item as any).estimatedReadyTime}
+                  createdAt={(item as any).createdAt}
+                />
+              )}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <CookingPot size={64} color={theme.icon} weight="thin" />
+                  <Text style={[styles.emptyText, { color: theme.icon }]}>No {filter.label.toLowerCase()} orders found</Text>
+                </View>
+              }
+              ListFooterComponent={<View style={{ height: 120 }} />}
+            />
+          </View>
+        )}
+      />
+
+      {/* MULTI-ORDER STACK OVERLAY */}
+      {queue.length > 0 && (
+        <OrderStackOverlay
+          orders={queue}
+          onOpenOrder={(order) => {
+            console.log('Opening order stack card:', order.id);
+            handleOpenOrder(order);
+          }}
+        />
+      )}
+
+      {/* NEW ORDER POPUP FLOW */}
+      <NewOrderSheet
+        visible={showNewOrderSheet}
+        order={activeNewOrder}
+        currentIndex={queue.findIndex(o => o.id === activeNewOrder?.id) + 1}
+        totalCount={queue.length}
+        onConfirm={() => {
+          setShowNewOrderSheet(false);
+          setShowConfirmationSheet(true);
+        }}
+        onCancel={() => {
+          if (activeNewOrder) removeOrder(activeNewOrder.id);
+          setShowNewOrderSheet(false);
+          setActiveNewOrder(null);
+        }}
+        onDismiss={() => {
+          setShowNewOrderSheet(false);
+        }}
+        onContact={() => { }}
+      />
+
+      <OrderConfirmationSheet
+        visible={showConfirmationSheet}
+        onAccept={(prepTime: number) => {
+          if (activeNewOrder) removeOrder(activeNewOrder.id);
+          setShowConfirmationSheet(false);
+          setActiveNewOrder(null);
+          // Real backend update would happen here
+        }}
+        onBack={() => {
+          setShowConfirmationSheet(false);
+          setShowNewOrderSheet(true);
+        }}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
+  container: { flex: 1, overflow: 'hidden' },
+  bgCircle: {
     position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    zIndex: -1,
+  },
+  filterSection: {
+    marginBottom: 20,
+  },
+  filterScroll: {
+    paddingHorizontal: 20,
+  },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 120,
+  },
+  emptyContainer: {
+    paddingTop: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.5,
+  },
+  emptyText: {
+    ...Typography.BodyRegular,
+    marginTop: 16,
   },
 });

@@ -1,34 +1,69 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { CustomTabBar } from '@/components/CustomTabBar';
+import { House, Package, Star, ChartBar, TrendUp, ForkKnife, CurrencyInr, DotsThreeCircle } from 'phosphor-react-native';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
+      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
+    >
+      <Tabs.Screen 
+        name="index" 
+        options={{ 
+          title: 'Live', 
+          tabBarIcon: ({ color }) => <House size={24} weight="fill" color={color} /> 
+        }} 
       />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
+      <Tabs.Screen 
+        name="stock" 
+        options={{ 
+          title: 'Stock', 
+          tabBarIcon: ({ color }) => <Package size={24} weight="fill" color={color} /> 
+        }} 
+      />
+      <Tabs.Screen 
+        name="reviews" 
+        options={{ 
+          title: 'Reviews', 
+          tabBarIcon: ({ color }) => <Star size={24} weight="fill" color={color} /> 
+        }} 
+      />
+      <Tabs.Screen 
+        name="dashboard" 
+        options={{ 
+          title: 'Dashboard', 
+          tabBarIcon: ({ color }) => <ChartBar size={24} weight="fill" color={color} /> 
+        }} 
+      />
+      <Tabs.Screen 
+        name="promotions" 
+        options={{ 
+          title: 'Growth', 
+          tabBarIcon: ({ color }) => <TrendUp size={24} weight="bold" color={color} /> 
+        }} 
+      />
+      <Tabs.Screen 
+        name="catalog" 
+        options={{ 
+          title: 'Menu', 
+          tabBarIcon: ({ color }) => <ForkKnife size={24} weight="fill" color={color} /> 
+        }} 
+      />
+      <Tabs.Screen 
+        name="earnings" 
+        options={{ 
+          title: 'Finance', 
+          tabBarIcon: ({ color }) => <CurrencyInr size={24} weight="fill" color={color} /> 
+        }} 
+      />
+      <Tabs.Screen 
+        name="more" 
+        options={{ 
+          title: 'More', 
+          tabBarIcon: ({ color }) => <DotsThreeCircle size={24} weight="fill" color={color} /> 
+        }} 
       />
     </Tabs>
   );
