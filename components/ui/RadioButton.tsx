@@ -14,6 +14,7 @@ interface RadioButtonProps {
 export const RadioButton = ({ selected, onPress, label, size = 24, activeColor }: RadioButtonProps) => {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
+  const isDark = colorScheme === 'dark';
   const finalActiveColor = activeColor || theme.primary;
 
   return (
@@ -24,8 +25,9 @@ export const RadioButton = ({ selected, onPress, label, size = 24, activeColor }
           width: size, 
           height: size, 
           borderRadius: size / 2,
-          borderColor: selected ? finalActiveColor : 'rgba(255,255,255,0.3)',
-          borderWidth: 2,
+          borderColor: selected ? finalActiveColor : theme.border,
+          backgroundColor: selected ? 'transparent' : isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+          borderWidth: 1,
         }
       ]}>
         {selected && (

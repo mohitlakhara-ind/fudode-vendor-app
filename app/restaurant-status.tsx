@@ -6,15 +6,19 @@ import {
   ScheduleTimingSheet
 } from '@/components/status/StatusBottomSheets';
 import { PremiumSwitch } from '@/components/ui/PremiumSwitch';
-import { Separator } from '@/components/ui/Separator';
 import { Colors, Fonts, Typography } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
 import {
   CaretLeft,
   CaretRight,
+  Clock,
   Gear,
-  Info
+  Info,
+  Lightning,
+  Motorcycle,
+  Robot,
+  UserCircle
 } from 'phosphor-react-native';
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -72,21 +76,35 @@ export default function RestaurantStatusScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Restaurant Card */}
-        <View style={styles.infoCard}>
-          <View style={styles.infoLeft}>
-            <Text style={[styles.restaurantName, { color: theme.text, fontFamily: Fonts.rounded }]}>Muggs Cafe</Text>
-            <Text style={[styles.restaurantId, { color: theme.textSecondary }]}>ID: 20202954 | Balotra Locality, Balotra</Text>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
+        {/* Restaurant Profile Section */}
+        <View style={[styles.profileCard, { backgroundColor: theme.surface, borderColor: theme.border + '15' }]}>
+          <View style={[styles.avatarContainer, { backgroundColor: theme.surfaceSecondary }]}>
+            <UserCircle size={40} color={theme.primary} weight="bold" />
           </View>
-          <Pressable style={[styles.settingsBtn, { backgroundColor: theme.surface }]}>
-            <Gear size={20} color={theme.textSecondary} />
-          </Pressable>
+          <View style={styles.profileInfo}>
+            <Text style={[styles.restaurantName, { color: theme.text, fontFamily: Fonts.poppins.bold }]}>Muggs Cafe</Text>
+            <View style={styles.idRow}>
+              <Text style={[styles.restaurantIdLabel, { color: theme.textSecondary }]}>RESTAURANT ID:</Text>
+              <Text style={[styles.restaurantIdValue, { color: theme.text, fontFamily: Fonts.inter.semibold }]}> 20202954</Text>
+            </View>
+            <Text style={[styles.restaurantLocation, { color: theme.textSecondary }]} numberOfLines={1}>
+              Balotra Locality, Balotra
+            </Text>
+          </View>
         </View>
 
-        {/* Status Switches */}
-        <View style={styles.section}>
+        {/* Operational Status Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>OPERATIONAL STATUS</Text>
+        </View>
+
+        <View style={[styles.statusCard, { backgroundColor: theme.surface, borderColor: theme.border + '15' }]}>
+          {/* Delivery Toggle */}
           <View style={styles.statusRow}>
+            <View style={[styles.iconWrapper, { backgroundColor: theme.surfaceSecondary }]}>
+              <Motorcycle size={22} color={isOnline ? '#10B981' : theme.textSecondary} weight="bold" />
+            </View>
             <View style={styles.statusInfo}>
               <Text style={[styles.statusLabel, { color: theme.text }]}>Delivery status</Text>
               <View style={styles.statusBadgeRow}>
@@ -103,14 +121,20 @@ export default function RestaurantStatusScreen() {
             />
           </View>
 
+          <View style={[styles.rowSeparator, { backgroundColor: theme.border + '08' }]} />
+
+          {/* Auto-Accept Toggle */}
           <View style={[styles.statusRow, { opacity: 0.6 }]}>
+            <View style={[styles.iconWrapper, { backgroundColor: theme.surfaceSecondary }]}>
+              <Robot size={22} color={theme.textSecondary} weight="bold" />
+            </View>
             <View style={styles.statusInfo}>
               <View style={styles.labelWithIcon}>
                 <Text style={[styles.statusLabel, { color: theme.text }]}>Auto-accept orders</Text>
-                <Info size={16} color={theme.textSecondary} />
+                <Info size={14} color={theme.textSecondary} />
               </View>
               <Text style={[styles.statusSubtext, { color: theme.textSecondary }]}>
-                Currently unavailable for this restaurant
+                Currently unavailable
               </Text>
             </View>
             <PremiumSwitch
@@ -120,43 +144,69 @@ export default function RestaurantStatusScreen() {
             />
           </View>
 
+          <View style={[styles.rowSeparator, { backgroundColor: theme.border + '08' }]} />
+
+          {/* Rush Mode Toggle */}
           <View style={styles.statusRow}>
+            <View style={[styles.iconWrapper, { backgroundColor: theme.surfaceSecondary }]}>
+              <Lightning size={22} color={isRushMode ? theme.primary : theme.textSecondary} weight={isRushMode ? 'fill' : 'bold'} />
+            </View>
             <View style={styles.statusInfo}>
               <Text style={[styles.statusLabel, { color: theme.text }]}>Rush mode</Text>
-              {isRushMode && (
-                <Text style={[styles.statusSubtext, { color: theme.primary }]}>
+              {isRushMode ? (
+                <Text style={[styles.statusSubtext, { color: theme.primary, fontWeight: '700' }]}>
                   Ends in 28 mins
+                </Text>
+              ) : (
+                <Text style={[styles.statusSubtext, { color: theme.textSecondary }]}>
+                  Temporarily increase prep time
                 </Text>
               )}
             </View>
             <PremiumSwitch
               value={isRushMode}
               onValueChange={handleToggleRush}
+              activeColor={theme.primary}
             />
           </View>
         </View>
 
-        <Separator marginVertical={20} opacity={0.1} />
+        {/* Schedule Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>SCHEDULE & SLOTS</Text>
+        </View>
 
-        {/* Delivery Slot */}
-        <View style={styles.statusRow}>
-          <View style={styles.statusInfo}>
-            <Text style={[styles.slotLabel, { color: theme.textSecondary }]}>Current delivery slot</Text>
-            <Text style={[styles.slotTime, { color: theme.text }]}>11:15 am - 10:30 pm</Text>
-          </View>
-          <Pressable style={styles.detailsBtn}>
-            <Text style={[styles.detailsText, { color: theme.primary }]}>Details</Text>
-            <CaretRight size={16} color={theme.primary} weight="bold" />
+        <View style={[styles.statusCard, { backgroundColor: theme.surface, borderColor: theme.border + '15' }]}>
+          <Pressable style={styles.statusRow} onPress={() => {}}>
+            <View style={[styles.iconWrapper, { backgroundColor: theme.surfaceSecondary }]}>
+              <Clock size={22} color={theme.text} weight="bold" />
+            </View>
+            <View style={styles.statusInfo}>
+              <Text style={[styles.statusLabel, { color: theme.textSecondary, ...Typography.Caption, fontSize: 13 }]}>Current delivery slot</Text>
+              <Text style={[styles.slotTime, { color: theme.text, fontFamily: Fonts.inter.semibold }]}>11:15 am - 10:30 pm</Text>
+            </View>
+            <View style={styles.detailsBtn}>
+              <Text style={[styles.detailsText, { color: theme.primary }]}>Details</Text>
+              <CaretRight size={16} color={theme.primary} weight="bold" />
+            </View>
           </Pressable>
         </View>
 
-        {/* App Settings */}
-        <View style={[styles.statusRow, { marginTop: 12 }]}>
-          <View style={styles.appSettingsLeft}>
-            <Gear size={24} color={theme.text} />
-            <Text style={[styles.appSettingsText, { color: theme.text }]}>App settings</Text>
-          </View>
-          <CaretRight size={20} color={theme.textSecondary} />
+        {/* Preferences Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>PREFERENCES</Text>
+        </View>
+
+        <View style={[styles.statusCard, { backgroundColor: theme.surface, borderColor: theme.border + '15' }]}>
+          <Pressable style={styles.statusRow} onPress={() => {}}>
+            <View style={[styles.iconWrapper, { backgroundColor: theme.surfaceSecondary }]}>
+              <Gear size={22} color={theme.text} weight="bold" />
+            </View>
+            <View style={styles.statusInfo}>
+              <Text style={[styles.statusLabel, { color: theme.text, fontSize: 16 }]}>App settings</Text>
+            </View>
+            <CaretRight size={20} color={theme.textSecondary} />
+          </Pressable>
         </View>
       </ScrollView>
 
@@ -244,51 +294,85 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
   },
-  infoCard: {
+  profileCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
     borderRadius: 24,
+    borderWidth: 1,
     marginBottom: 20,
+    gap: 16,
   },
-  infoLeft: {
-    gap: 4,
-  },
-  restaurantName: {
-    ...Typography.H2,
-    fontSize: 20,
-  },
-  restaurantId: {
-    ...Typography.Caption,
-    fontSize: 13,
-  },
-  settingsBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  avatarContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  section: {
-    gap: 10,
+  profileInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  restaurantName: {
+    fontSize: 20,
+    letterSpacing: -0.5,
+  },
+  idRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  restaurantIdLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  restaurantIdValue: {
+    fontSize: 11,
+  },
+  restaurantLocation: {
+    ...Typography.Caption,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  sectionHeader: {
+    marginTop: 12,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  statusCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginBottom: 8,
   },
   statusRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    borderRadius: 20,
+    padding: 16,
+    gap: 12,
+  },
+  iconWrapper: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statusInfo: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   statusLabel: {
     ...Typography.H3,
-    fontSize: 17,
+    fontSize: 15,
+    fontWeight: '700',
   },
   statusBadgeRow: {
     flexDirection: 'row',
@@ -296,34 +380,27 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   statusValue: {
-    ...Typography.Caption,
+    fontSize: 12,
     fontWeight: '700',
   },
   labelWithIcon: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   statusSubtext: {
-    ...Typography.Caption,
     fontSize: 12,
   },
-  divider: {
+  rowSeparator: {
     height: 1,
-    width: '100%',
-    marginVertical: 20,
-  },
-  slotLabel: {
-    ...Typography.Caption,
-    fontSize: 13,
+    marginHorizontal: 16,
   },
   slotTime: {
-    ...Typography.H3,
     fontSize: 17,
   },
   detailsBtn: {
@@ -332,16 +409,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   detailsText: {
-    ...Typography.BodyRegular,
-    fontWeight: '700',
-  },
-  appSettingsLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  appSettingsText: {
-    ...Typography.H3,
-    fontSize: 17,
+    fontSize: 14,
+    fontWeight: '800',
   }
 });

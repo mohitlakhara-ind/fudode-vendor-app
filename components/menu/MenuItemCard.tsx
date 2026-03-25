@@ -18,14 +18,18 @@ export const MenuItemCard = ({ item, onToggleStock, onEdit }: MenuItemCardProps)
   const theme = Colors[colorScheme];
 
   return (
-    <View style={[styles.itemCard, { borderBottomColor: theme.border + '15' }]}>
+    <View style={[styles.itemCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <View style={styles.itemMainInfo}>
         <View style={styles.itemLeft}>
-          <View style={[styles.vegIcon, { borderColor: item.isVeg ? '#22BA62' : '#E23744' }]}>
-            <View style={[styles.vegDot, { backgroundColor: item.isVeg ? '#22BA62' : '#E23744' }]} />
+          <View style={styles.topRow}>
+            <View style={[styles.vegIcon, { borderColor: item.isVeg ? theme.success : theme.error }]}>
+              <View style={[styles.vegDot, { backgroundColor: item.isVeg ? theme.success : theme.error }]} />
+            </View>
+            <ThemedText style={[styles.itemPrice, { color: theme.text }]}>₹{item.price}</ThemedText>
           </View>
+          
           <ThemedText style={[styles.itemName, { color: theme.text }]}>{item.name}</ThemedText>
-          <ThemedText style={[styles.itemPrice, { color: theme.text }]}>₹{item.price}</ThemedText>
+          
           {item.description && (
             <ThemedText style={[styles.itemDesc, { color: theme.textSecondary }]} numberOfLines={2}>
               {item.description}
@@ -34,13 +38,18 @@ export const MenuItemCard = ({ item, onToggleStock, onEdit }: MenuItemCardProps)
           
           <View style={styles.statusContainer}>
             {item.status === 'not-live' && (
-              <View style={[styles.statusTag, { backgroundColor: '#E2374415' }]}>
-                <ThemedText style={[styles.notLiveText, { color: '#E23744' }]}>not live</ThemedText>
+              <View style={[styles.statusTag, { backgroundColor: theme.error + '15' }]}>
+                <ThemedText style={[styles.notLiveText, { color: theme.error }]}>not live</ThemedText>
               </View>
             )}
             {item.status === 'no-photo' && (
-              <View style={[styles.statusTag, { backgroundColor: '#E5A50015' }]}>
-                <ThemedText style={[styles.notLiveText, { color: '#E5A500' }]}>no photo</ThemedText>
+              <View style={[styles.statusTag, { backgroundColor: theme.primary + '15' }]}>
+                <ThemedText style={[styles.notLiveText, { color: theme.primary }]}>no photo</ThemedText>
+              </View>
+            )}
+            {!item.isInStock && (
+              <View style={[styles.statusTag, { backgroundColor: theme.border + '20' }]}>
+                <ThemedText style={[styles.notLiveText, { color: theme.textSecondary }]}>out of stock</ThemedText>
               </View>
             )}
           </View>
@@ -49,48 +58,39 @@ export const MenuItemCard = ({ item, onToggleStock, onEdit }: MenuItemCardProps)
         <View style={styles.itemRight}>
           <View style={[styles.imageArea, { backgroundColor: theme.surfaceSecondary }]}>
             {item.imageUrl ? (
-              <Image source={{ uri: item.imageUrl }} style={styles.itemImage} resizeMode="cover" />
+              <Image source={{ uri: item.imageUrl }} style={[styles.itemImage, !item.isInStock && { opacity: 0.5 }]} resizeMode="cover" />
             ) : (
               <View style={styles.addPhotoPlaceholder}>
-                <Camera size={26} color={theme.info} weight="duotone" />
+                <Camera size={26} color={theme.info} weight="bold" />
                 <ThemedText style={[styles.addPhotoText, { color: theme.info }]}>Add photo</ThemedText>
               </View>
             )}
             
-            <View style={styles.addBtnWrapper}>
-              <Pressable 
-                style={({ pressed }) => [
-                  styles.addBtn, 
-                  { backgroundColor: '#FFF', transform: [{ scale: pressed ? 0.95 : 1 }] }
-                ]}
-              >
-                <ThemedText style={styles.addBtnText}>+ ADD</ThemedText>
-              </Pressable>
-            </View>
 
             {item.imageUrl && (
               <View style={styles.imageCountBadge}>
-                <Camera size={12} color="#FFF" weight="fill" />
-                <ThemedText style={styles.imageCountText}>1</ThemedText>
+                <Camera size={12} color={theme.background} weight="fill" />
+                <ThemedText style={[styles.imageCountText, { color: theme.background }]}>1</ThemedText>
+              </View>
+            )}
+
+            {!item.isInStock && (
+              <View style={[styles.outOfStockOverlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+                <ThemedText style={[styles.outOfStockOverlayText, { color: '#FFF' }]}>PAUSED</ThemedText>
               </View>
             )}
           </View>
         </View>
       </View>
 
-      <View style={styles.itemActions}>
+      <View style={[styles.itemActions, { borderTopColor: theme.border }]}>
         <View style={styles.actionLeft}>
           <Pressable style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.7 : 1 }]}>
-            <ThumbsUp size={20} color={theme.textSecondary} weight="regular" />
+            <ThumbsUp size={18} color={theme.textSecondary} weight="regular" />
             <ThemedText style={[styles.actionLabel, { color: theme.textSecondary }]}>Recommend</ThemedText>
           </Pressable>
         </View>
         <View style={styles.actionRight}>
-          {!item.isInStock && (
-            <ThemedText style={[styles.stockStatus, { color: theme.textSecondary }]}>
-              Next available {item.outOfStockUntil?.split(',')[0]}
-            </ThemedText>
-          )}
           <View style={styles.stockControl}>
             <ThemedText style={[styles.inStockLabel, { color: theme.textSecondary }]}>
               {item.isInStock ? 'In stock' : 'Out of stock'}
@@ -98,15 +98,14 @@ export const MenuItemCard = ({ item, onToggleStock, onEdit }: MenuItemCardProps)
             <PremiumSwitch 
               value={item.isInStock} 
               onValueChange={(val) => onToggleStock?.(item.id, val)} 
-              activeColor="#22BA62"
+              activeColor={theme.success}
             />
           </View>
           <Pressable 
             style={({ pressed }) => [styles.editBtn, { opacity: pressed ? 0.7 : 1 }]} 
             onPress={() => onEdit?.(item)}
           >
-            <PencilSimple size={22} color={theme.textSecondary} />
-            <ThemedText style={[styles.actionLabel, { color: theme.textSecondary }]}>Edit</ThemedText>
+            <PencilSimple size={20} color={theme.textSecondary} />
           </Pressable>
         </View>
       </View>
@@ -116,8 +115,16 @@ export const MenuItemCard = ({ item, onToggleStock, onEdit }: MenuItemCardProps)
 
 const styles = StyleSheet.create({
   itemCard: {
-    paddingVertical: 20,
-    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 4,
   },
   itemMainInfo: {
     flexDirection: 'row',
@@ -127,13 +134,18 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: 16,
   },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 10,
+  },
   vegIcon: {
     width: 14,
     height: 14,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
     borderRadius: 2,
   },
   vegDot: {
@@ -145,17 +157,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     marginBottom: 4,
-    letterSpacing: -0.2,
+    letterSpacing: -0.4,
   },
   itemPrice: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 8,
+    fontSize: 15,
+    fontWeight: '800',
   },
   itemDesc: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
     marginBottom: 12,
+    fontWeight: '600',
   },
   statusContainer: {
     flexDirection: 'row',
@@ -164,22 +176,22 @@ const styles = StyleSheet.create({
   statusTag: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   notLiveText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   itemRight: {
-    width: 120,
+    width: 110,
     alignItems: 'center',
   },
   imageArea: {
-    width: 114,
-    height: 114,
-    borderRadius: 16,
+    width: 100,
+    height: 100,
+    borderRadius: 14,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -191,61 +203,48 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
-    paddingBottom: 15,
+    gap: 4,
   },
   addPhotoText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  addBtnWrapper: {
-    position: 'absolute',
-    bottom: -6,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  addBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: '#EFEFEF',
-  },
-  addBtnText: {
-    color: '#000',
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 1,
+    fontSize: 10,
+    fontWeight: '800',
   },
   imageCountBadge: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
-    gap: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 5,
+    gap: 3,
   },
   imageCountText: {
     color: '#FFF',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
+  },
+  outOfStockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  outOfStockOverlayText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   itemActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
   },
   actionLeft: {
     flexDirection: 'row',
@@ -256,7 +255,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   actionLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
   actionRight: {
@@ -264,23 +263,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16,
   },
-  stockStatus: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
   stockControl: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
   inStockLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
   editBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.02)',
   },
 });

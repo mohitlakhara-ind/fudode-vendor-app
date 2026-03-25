@@ -12,6 +12,8 @@ import { useRouter } from 'expo-router';
 import {
   CaretLeft,
   SignOut,
+  Monitor,
+  Devices,
 } from 'phosphor-react-native';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { Colors, Typography } from '@/constants/theme';
@@ -37,21 +39,28 @@ const SESSIONS = [
 export default function SessionsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colorScheme } = useAppTheme();
+  const { colorScheme, isDark } = useAppTheme();
   const theme = Colors[colorScheme];
+
+  const getDeviceIcon = (device: string) => {
+    if (device.toLowerCase().includes('windows') || device.toLowerCase().includes('mac')) {
+      return <Monitor size={22} color={theme.text} weight="duotone" />;
+    }
+    return <Devices size={22} color={theme.text} weight="duotone" />;
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <View style={[styles.header, { paddingTop: insets.top + 10, backgroundColor: theme.surface, borderBottomColor: theme.border + '26' }]}>
         <View style={styles.headerTop}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <CaretLeft size={28} color={theme.text} weight="bold" />
+            <CaretLeft size={24} color={theme.text} weight="bold" />
           </Pressable>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>Logged in devices</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Security & Sessions</Text>
         </View>
         <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
-          ID: 20202954 • Muggs Cafe, Balotra Locality, Balotra
+          ID: 20202954 • Muggs Cafe
         </Text>
       </View>
 
@@ -60,14 +69,20 @@ export default function SessionsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Profile Card */}
-        <View style={[styles.profileCard, { backgroundColor: theme.surfaceSecondary + '50' }]}>
-          <Image
-            source={require('@/assets/images/react-logo.png')}
-            style={[styles.avatar, { borderColor: theme.primary, borderWidth: 1 }]}
-          />
+        <View style={[styles.profileCard, { backgroundColor: theme.surface, borderColor: theme.border + '20', borderWidth: 1 }]}>
+          <View style={[styles.avatarContainer, { backgroundColor: theme.primary + '10' }]}>
+            <Image
+              source={require('@/assets/images/react-logo.png')}
+              style={styles.avatar}
+            />
+            <View style={[styles.onlineIndicator, { backgroundColor: theme.success, borderColor: theme.background }]} />
+          </View>
           <View style={styles.profileInfo}>
             <Text style={[styles.profileName, { color: theme.text }]}>Sunil Lalwani</Text>
             <Text style={[styles.profileEmail, { color: theme.textSecondary }]}>lsunil96@gmail.com</Text>
+          </View>
+          <View style={[styles.roleBadge, { backgroundColor: theme.info + '15' }]}>
+            <Text style={[styles.roleBadgeText, { color: theme.info }]}>Owner</Text>
           </View>
         </View>
 
@@ -83,25 +98,32 @@ export default function SessionsScreen() {
               style={[
                 styles.deviceCard, 
                 { 
-                  backgroundColor: theme.surfaceSecondary + '50',
-                  borderTopLeftRadius: index === 0 ? 16 : 0,
-                  borderTopRightRadius: index === 0 ? 16 : 0,
-                  borderBottomLeftRadius: index === SESSIONS.length - 1 ? 16 : 0,
-                  borderBottomRightRadius: index === SESSIONS.length - 1 ? 16 : 0,
-                  borderBottomWidth: index === SESSIONS.length - 1 ? 0 : 1,
-                  borderBottomColor: theme.border + '10',
+                  backgroundColor: theme.surface,
+                  borderColor: theme.border + '15',
+                  borderWidth: 1,
+                  marginBottom: 12,
+                  borderRadius: 20,
                 }
               ]}
             >
+              <View style={[styles.deviceIconBox, { backgroundColor: theme.surfaceSecondary + '40' }]}>
+                {getDeviceIcon(session.device)}
+              </View>
               <View style={styles.deviceInfo}>
-                <Text style={[styles.deviceName, { color: theme.text }]}>{session.device}</Text>
+                <View style={styles.deviceNameRow}>
+                  <Text style={[styles.deviceName, { color: theme.text }]}>{session.device}</Text>
+                  {index === 0 && (
+                    <View style={[styles.currentBadge, { backgroundColor: theme.success + '15' }]}>
+                      <Text style={[styles.currentBadgeText, { color: theme.success }]}>Current</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={[styles.deviceTime, { color: theme.textSecondary }]}>
-                  Logged in on {session.timestamp}
+                  {index === 0 ? 'Active now' : `Logged in on ${session.timestamp}`}
                 </Text>
               </View>
-              <Pressable style={styles.logoutBtn}>
+              <Pressable style={[styles.logoutBtn, { backgroundColor: theme.error + '10' }]}>
                 <SignOut size={18} color={theme.error} weight="bold" />
-                <Text style={[styles.logoutText, { color: theme.error }]}>Log-out</Text>
               </Pressable>
             </View>
           ))}
@@ -117,8 +139,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 16,
-    paddingBottom: 20,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderBottomWidth: 1,
   },
   headerTop: {
     flexDirection: 'row',
@@ -130,13 +151,15 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   headerTitle: {
-    ...Typography.H1,
-    fontSize: 22,
+    ...Typography.H2,
+    fontSize: 20,
+    fontWeight: '700',
   },
   headerSubtitle: {
     ...Typography.Caption,
     fontSize: 13,
-    paddingLeft: 44,
+    paddingLeft: 40,
+    opacity: 0.6,
   },
   scrollContent: {
     paddingTop: 24,
@@ -146,15 +169,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 20,
+    borderRadius: 24,
     marginBottom: 32,
     gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  avatarContainer: {
+    position: 'relative',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   avatar: {
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: '#333',
+  },
+  onlineIndicator: {
+    position: 'absolute',
+    right: 1,
+    bottom: 1,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
   },
   profileInfo: {
     flex: 1,
@@ -163,55 +207,84 @@ const styles = StyleSheet.create({
   profileName: {
     ...Typography.H2,
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   profileEmail: {
     ...Typography.BodyRegular,
     fontSize: 14,
-    opacity: 0.8,
+    opacity: 0.7,
+  },
+  roleBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 100,
+  },
+  roleBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
   },
   sectionHeader: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   sectionTitle: {
-    ...Typography.H2,
-    fontSize: 18,
+    ...Typography.H3,
+    fontSize: 16,
     fontWeight: '700',
+    opacity: 0.6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   deviceList: {
-    borderRadius: 16,
-    overflow: 'hidden',
+    gap: 0,
   },
   deviceCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    gap: 12,
+    padding: 16,
+    gap: 16,
+  },
+  deviceIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   deviceInfo: {
     flex: 1,
     gap: 4,
   },
+  deviceNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   deviceName: {
     ...Typography.H3,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  currentBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  currentBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
   },
   deviceTime: {
     ...Typography.Caption,
-    fontSize: 12,
-    opacity: 0.7,
+    fontSize: 13,
+    opacity: 0.6,
   },
   logoutBtn: {
-    flexDirection: 'row',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
-    padding: 8,
-  },
-  logoutText: {
-    ...Typography.H3,
-    fontSize: 14,
-    fontWeight: '700',
   },
 });

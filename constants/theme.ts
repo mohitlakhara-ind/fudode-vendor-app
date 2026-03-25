@@ -42,13 +42,13 @@ export const Colors = {
     secondary: crimson,
     text: '#ECEDEE',
     textSecondary: '#9BA1A6',
-    background: '#0D0D0D', // Slightly darker
-    surface: '#1A1A1A',
-    surfaceSecondary: '#2C2C2E',
-    border: 'rgba(255,255,255,0.1)',
+    background: '#131313', // Obsidian
+    surface: '#1E1E1E', // Slightly lighter surface
+    surfaceSecondary: 'rgba(255,255,255,0.06)', 
+    border: 'rgba(255,255,255,0.15)', // Ghost Borders (15% opacity)
     tint: gold,
     icon: '#9BA1A6',
-    glass: 'rgba(26,26,26,0.7)',
+    glass: 'rgba(18,18,18,0.7)',
     info: '#3B82F6',
     success: '#22C55E',
     error: crimson,

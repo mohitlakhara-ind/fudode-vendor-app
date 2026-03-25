@@ -8,134 +8,214 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  MagnifyingGlass,
-  Image as ImageIcon,
-  SquaresFour,
-  X,
   DotsThreeVertical,
+  Plus,
+  List,
 } from 'phosphor-react-native';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { Colors } from '@/constants/theme';
+import { Colors, Typography } from '@/constants/theme';
 import { MOCK_INVENTORY } from '@/constants/mockInventory';
 import { ThemedText } from '@/components/themed-text';
+import { TabSwitcher } from '@/components/ui/TabSwitcher';
+import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
+import { RestaurantSwitcher } from '@/components/orders/RestaurantSwitcher';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 
 // Extracted Components
 import { PhotoPromoBanner } from '@/components/menu/PhotoPromoBanner';
 import { MenuCategory } from '@/components/menu/MenuCategory';
+import { MarkOutOfStockSheet } from '@/components/inventory/MarkOutOfStockSheet';
+import { StickyCategoryNav } from '@/components/menu/StickyCategoryNav';
+import { SearchBar } from '@/components/orders/SearchBar';
+import { InventoryCategory } from '@/constants/mockInventory';
+
+const OWNED_RESTAURANTS = [
+  { id: '1', name: 'Muggs Cafe', locality: 'Balotra Locality' },
+  { id: '2', name: 'Pizza Palace', locality: 'HSR Layout, Bangalore' },
+];
 
 export default function CatalogScreen() {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('All items');
-  const [activeFilter, setActiveFilter] = useState('Item not live');
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategoryId, setActiveCategoryId] = useState(MOCK_INVENTORY[0].id);
+  const [inventory, setInventory] = useState<InventoryCategory[]>(MOCK_INVENTORY);
+  const [isOnline, setIsOnline] = useState(true);
+  const [currentRestaurant, setCurrentRestaurant] = useState(OWNED_RESTAURANTS[0]);
+  const [isSwitcherVisible, setIsSwitcherVisible] = useState(false);
+  const { queue } = useSelector((state: RootState) => state.order);
+
+  // Bottom Sheet States
+  const [showStockSheet, setShowStockSheet] = useState(false);
+  const [activeItem, setActiveItem] = useState<any>(null);
+  const [activeCategory, setActiveCategory] = useState<any>(null);
+  const [sheetType, setSheetType] = useState<'item' | 'subcategory'>('item');
+
+  const handleToggleCategory = (catId: string, isActive: boolean) => {
+    const category = inventory.find(c => c.id === catId);
+    if (!isActive && category) { // Turning OFF
+      setActiveCategory(category);
+      setSheetType('subcategory');
+      setShowStockSheet(true);
+      return;
+    }
+    // Turning ON
+    setInventory(prev => prev.map(cat => cat.id === catId ? { ...cat, isActive: true } : cat));
+  };
+
+  const handleToggleItemStatus = (catId: string, itemId: string, isInStock: boolean) => {
+    const category = inventory.find(c => c.id === catId);
+    const item = category?.items.find(i => i.id === itemId);
+
+    if (!isInStock && item) { // Turning OFF
+      setActiveItem({ ...item, catId });
+      setSheetType('item');
+      setShowStockSheet(true);
+      return;
+    }
+    // Turning ON
+    setInventory(prev => prev.map(cat => {
+      if (cat.id !== catId) return cat;
+      return {
+        ...cat,
+        items: cat.items.map(i => i.id === itemId ? { ...i, isInStock: true } : i)
+      };
+    }));
+  };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle="light-content" />
+    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
       
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10, backgroundColor: theme.background }]}>
-        <View style={styles.headerTop}>
-          <ThemedText style={[styles.headerTitle, { color: theme.text }]}>Menu</ThemedText>
-          <View style={styles.headerIcons}>
-            <Pressable style={styles.iconButton}><MagnifyingGlass size={24} color={theme.text} /></Pressable>
-            <Pressable style={styles.iconButton}><ImageIcon size={24} color={theme.text} /></Pressable>
-            <Pressable style={styles.iconButton}><SquaresFour size={24} color={theme.text} /></Pressable>
-          </View>
-        </View>
-        <View style={styles.restaurantRow}>
-          <ThemedText style={[styles.restaurantName, { color: theme.text }]}>Muggs Cafe</ThemedText>
-          <ThemedText style={[styles.restaurantSubtext, { color: theme.textSecondary }]}>Cafe, Pizza</ThemedText>
-        </View>
-      </View>
+      <RestaurantHeader
+        restaurantName={currentRestaurant.name}
+        locality={currentRestaurant.locality}
+        isOnline={isOnline}
+        onToggleStatus={() => setIsOnline(!isOnline)}
+        onPressInfo={() => setIsSwitcherVisible(true)}
+      />
+
+      <RestaurantSwitcher
+        visible={isSwitcherVisible}
+        onClose={() => setIsSwitcherVisible(false)}
+        restaurants={OWNED_RESTAURANTS}
+        selectedId={currentRestaurant.id}
+        onSelect={(res) => {
+          setCurrentRestaurant(res);
+          setIsSwitcherVisible(false);
+        }}
+      />
 
       <ScrollView 
+        stickyHeaderIndices={[2]}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: queue.length > 0 ? 220 : 100 }}
       >
         <PhotoPromoBanner />
 
-        {/* Filters */}
-        <View style={styles.filterSection}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScroll}>
-            <Pressable 
-              onPress={() => setActiveFilter('Item not live')}
-              style={({ pressed }) => [
-                styles.filterPill, 
-                activeFilter === 'Item not live' && { borderColor: theme.text, backgroundColor: theme.surfaceSecondary },
-                { backgroundColor: theme.surface, opacity: pressed ? 0.8 : 1 }
-              ]}
-            >
-              <ThemedText style={[styles.filterLabel, { color: theme.text }]}>Item not live</ThemedText>
-              <View style={[styles.countBadge, { backgroundColor: '#E23744' }]}><ThemedText style={styles.countText}>1</ThemedText></View>
-              {activeFilter === 'Item not live' && <X size={14} color={theme.text} weight="bold" style={{ marginLeft: 6 }} />}
-            </Pressable>
-
-            <Pressable 
-              onPress={() => setActiveFilter('Out of stock')}
-              style={({ pressed }) => [
-                styles.filterPill, 
-                activeFilter === 'Out of stock' && { borderColor: theme.text, backgroundColor: theme.surfaceSecondary },
-                { backgroundColor: theme.surface, opacity: pressed ? 0.8 : 1 }
-              ]}
-            >
-              <ThemedText style={[styles.filterLabel, { color: theme.text }]}>Out of stock</ThemedText>
-              <View style={[styles.countBadge, { backgroundColor: '#E23744' }]}><ThemedText style={styles.countText}>1</ThemedText></View>
-              {activeFilter === 'Out of stock' && <X size={14} color={theme.text} weight="bold" style={{ marginLeft: 6 }} />}
-            </Pressable>
-
-            <Pressable style={({ pressed }) => [styles.filterPill, { backgroundColor: theme.surface, opacity: pressed ? 0.8 : 1 }]}>
-              <SquaresFour size={18} color={theme.text} weight="regular" />
-              <ThemedText style={[styles.filterLabel, { color: theme.text, marginLeft: 6 }]}>Filter</ThemedText>
-            </Pressable>
+        {/* Unified Search & Filters */}
+        <View style={[styles.headerActions, { backgroundColor: theme.background }]}>
+          <View style={styles.topSearchRow}>
+            <SearchBar 
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search items, categories..."
+              onFilterPress={() => {}}
+              containerStyle={{ flex: 1 }}
+            />
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickFilters}>
+            {['All', 'Not Live', 'Out of Stock', 'Veg Only'].map(filter => (
+              <Pressable 
+                key={filter}
+                onPress={() => setActiveFilter(filter.toLowerCase())}
+                style={[
+                  styles.quickFilterPill,
+                  { backgroundColor: activeFilter === filter.toLowerCase() ? theme.text : theme.surface }
+                ]}
+              >
+                <ThemedText style={[styles.quickFilterText, { color: activeFilter === filter.toLowerCase() ? theme.background : theme.textSecondary }]}>
+                  {filter}
+                </ThemedText>
+              </Pressable>
+            ))}
           </ScrollView>
-
-          {/* Guidance Tooltip */}
-          {activeFilter === 'Item not live' && (
-            <View style={[styles.tooltip, styles.shadowMedium, { backgroundColor: '#FFD75E' }]}>
-              <ThemedText style={styles.tooltipText}>Below Items are not live.</ThemedText>
-              <View style={[styles.tooltipArrow, { borderBottomColor: '#FFD75E' }]} />
-            </View>
-          )}
         </View>
 
-        {/* Tabs */}
-        <View style={[styles.tabsWrapper, { borderBottomColor: theme.border + '15' }]}>
-          <Pressable 
-            onPress={() => setActiveTab('All items')}
-            style={[styles.tab, activeTab === 'All items' && { backgroundColor: theme.surfaceSecondary }]}
-          >
-            <ThemedText style={[styles.tabLabel, { color: activeTab === 'All items' ? theme.text : theme.textSecondary }]}>All items</ThemedText>
-          </Pressable>
-          <Pressable 
-            onPress={() => setActiveTab('Add-ons')}
-            style={[styles.tab, activeTab === 'Add-ons' && { backgroundColor: theme.surfaceSecondary }]}
-          >
-            <ThemedText style={[styles.tabLabel, { color: activeTab === 'Add-ons' ? theme.text : theme.textSecondary }]}>Add-ons</ThemedText>
-          </Pressable>
-        </View>
+        {/* Sticky Category Nav */}
+        <StickyCategoryNav 
+          categories={inventory.map(c => ({ id: c.id, name: c.name, count: c.items.length }))}
+          activeCategoryId={activeCategoryId}
+          onCategoryPress={setActiveCategoryId}
+        />
+
+        <TabSwitcher
+          tabs={['All items', 'Add-ons']}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          containerStyle={{ marginHorizontal: 16, marginTop: 16, marginBottom: 8 }}
+        />
 
         {/* Menu Categories */}
-        {MOCK_INVENTORY.slice(0, 1).map(category => (
+        {inventory.map(category => (
           <MenuCategory 
             key={category.id} 
             category={category} 
-            onToggleCategory={(id, active) => console.log('Toggle category', id, active)}
-            onToggleItemStock={(catId, itemId, inStock) => console.log('Toggle item stock', catId, itemId, inStock)}
+            onToggleCategory={handleToggleCategory}
+            onToggleItemStock={handleToggleItemStatus}
           />
         ))}
       </ScrollView>
 
-      {/* Floating Menu Button */}
-      <Pressable style={({ pressed }) => [
-        styles.floatingMenuBtn, 
-        styles.shadowLarge,
-        { backgroundColor: '#1C1C1E', borderColor: 'rgba(255,255,255,0.1)', transform: [{ scale: pressed ? 0.95 : 1 }] }
-      ]}>
-        <DotsThreeVertical size={20} color="#FFF" weight="bold" />
-        <ThemedText style={styles.floatingMenuText}>MENU</ThemedText>
-      </Pressable>
+      <MarkOutOfStockSheet
+        visible={showStockSheet}
+        type={sheetType}
+        itemTitle={sheetType === 'item' ? activeItem?.name : activeCategory?.name}
+        itemSubtitle={sheetType === 'item' ? activeItem?.categoryName : undefined}
+        onClose={() => setShowStockSheet(false)}
+        onConfirm={(data) => {
+          console.log('Catalog marking out of stock:', data);
+          if (sheetType === 'item') {
+            setInventory(prev => prev.map(cat => {
+              if (cat.id !== activeItem.catId) return cat;
+              return {
+                ...cat,
+                items: cat.items.map(i => i.id === activeItem.id ? { ...i, isInStock: false } : i)
+              };
+            }));
+          } else {
+            setInventory(prev => prev.map(cat =>
+              cat.id === activeCategory.id ? { ...cat, isActive: false } : cat
+            ));
+          }
+          setShowStockSheet(false);
+        }}
+      />
+
+      {/* Floating Actions */}
+      <View style={[styles.floatingActionsWrapper, { bottom: queue.length > 0 ? 220 : 120 }]}>
+        <Pressable style={({ pressed }) => [
+          styles.categoryFab, 
+          styles.shadowLarge,
+          { backgroundColor: theme.surface, borderColor: theme.border, transform: [{ scale: pressed ? 0.9 : 1 }] }
+        ]}>
+          <List size={22} color={theme.text} weight="bold" />
+          <ThemedText style={[styles.categoryFabText, { color: theme.text }]}>Categories</ThemedText>
+        </Pressable>
+
+        <Pressable style={({ pressed }) => [
+          styles.addFab, 
+          styles.shadowLarge,
+          { backgroundColor: theme.text, transform: [{ scale: pressed ? 0.95 : 1 }] }
+        ]}>
+          <Plus size={22} color={theme.background} weight="bold" />
+          <ThemedText style={[styles.addFabText, { color: theme.background }]}>ADD ITEM</ThemedText>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -144,96 +224,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: '900',
-    letterSpacing: -0.5,
-  },
-  headerIcons: {
-    flexDirection: 'row',
-    gap: 18,
-  },
-  iconButton: {
-    padding: 4,
-  },
-  restaurantRow: {
-    marginBottom: 4,
-  },
-  restaurantName: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
   restaurantSubtext: {
     fontSize: 14,
     fontWeight: '700',
   },
-  filterSection: {
-    paddingVertical: 12,
+  headerActions: {
+    paddingTop: 12,
+    paddingBottom: 8,
   },
-  filtersScroll: {
-    paddingHorizontal: 16,
-    gap: 10,
-  },
-  filterPill: {
+  topSearchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  quickFilters: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  quickFilterPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
   },
-  filterLabel: {
-    fontSize: 14,
+  quickFilterText: {
+    fontSize: 13,
     fontWeight: '800',
-  },
-  countBadge: {
-    marginLeft: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 1,
-    borderRadius: 7,
-    minWidth: 20,
-    alignItems: 'center',
-  },
-  countText: {
-    color: '#FFF',
-    fontSize: 11,
-    fontWeight: '900',
-  },
-  tooltip: {
-    marginHorizontal: 16,
-    marginTop: 10,
-    padding: 14,
-    borderRadius: 10,
-    position: 'relative',
-  },
-  tooltipText: {
-    color: '#000',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  tooltipArrow: {
-    position: 'absolute',
-    top: -8,
-    left: 24,
-    width: 0,
-    height: 0,
-    borderLeftWidth: 8,
-    borderRightWidth: 8,
-    borderBottomWidth: 8,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
   },
   tabsWrapper: {
     flexDirection: 'row',
@@ -255,23 +272,41 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: -0.3,
   },
-  floatingMenuBtn: {
+  floatingActionsWrapper: {
     position: 'absolute',
-    bottom: 30,
-    alignSelf: 'center',
+    left: 20,
+    right: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 22,
-    paddingVertical: 14,
-    borderRadius: 30,
-    borderWidth: 1,
-    gap: 10,
+    justifyContent: 'center',
+    gap: 12,
   },
-  floatingMenuText: {
-    color: '#FFF',
+  categoryFab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    height: 52,
+    borderRadius: 26,
+    gap: 10,
+    borderWidth: 1,
+  },
+  categoryFabText: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  addFab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 52,
+    paddingHorizontal: 24,
+    borderRadius: 26,
+    gap: 8,
+  },
+  addFabText: {
     fontSize: 15,
     fontWeight: '900',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
   },
   shadowMedium: {
     shadowColor: '#000',

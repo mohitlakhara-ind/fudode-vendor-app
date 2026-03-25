@@ -6,11 +6,13 @@ import { OrderStackOverlay } from '@/components/orders/OrderStackOverlay';
 import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
 import { RestaurantSwitcher } from '@/components/orders/RestaurantSwitcher';
 import { SearchBar } from '@/components/orders/SearchBar';
+import { FilterSheet } from '@/components/common/FilterSheet';
 import { Colors, StatusColors, Typography } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { IncomingOrder, useOrderQueue } from '@/hooks/useOrderQueue';
+import { IncomingOrder } from '@/hooks/useOrderQueue';
 import { RootState } from '@/store/store';
-import { useRouter } from 'expo-router';
+import { addOrder, removeOrder } from '@/store/slices/orderSlice';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   CheckCircle,
   ClockAfternoon,
@@ -20,9 +22,11 @@ import {
   XCircle
 } from 'phosphor-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { Dimensions, FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { useBatteryStatus } from '@/hooks/useBatteryStatus';
+import { BatteryWarningBanner } from '@/components/ui/BatteryWarningBanner';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -203,22 +207,47 @@ const MOCK_ORDERS = [
   },
 ];
 
+const ORDER_FILTER_CATEGORIES = [
+  {
+    id: 'type',
+    label: 'Order Type',
+    options: [
+      { id: 'delivery', label: 'Delivery' },
+      { id: 'pickup', label: 'Self Pickup' },
+      { id: 'dinein', label: 'Dine-in' },
+    ]
+  },
+  {
+    id: 'payment',
+    label: 'Payment',
+    options: [
+      { id: 'upi', label: 'UPI' },
+      { id: 'card', label: 'Card' },
+      { id: 'cod', label: 'Cash on Delivery' },
+    ]
+  }
+];
+
 export default function LiveOrdersScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
   const isDark = colorScheme === 'dark';
-  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+
+  const dispatch = useDispatch();
+  const params = useLocalSearchParams();
+  const { queue } = useSelector((state: RootState) => state.order);
 
   const [activeFilter, setActiveFilter] = useState('Preparing');
   const [searchQuery, setSearchQuery] = useState('');
   const [isOnline, setIsOnline] = useState(true);
   const [currentRestaurant, setCurrentRestaurant] = useState(OWNED_RESTAURANTS[0]);
   const [isSwitcherVisible, setIsSwitcherVisible] = useState(false);
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [showBatteryDebug, setShowBatteryDebug] = useState(false);
 
-  // Multi-Order Queue hook
-  const { queue, addOrder, removeOrder } = useOrderQueue();
+  const { level, isLowBattery, simulateLowBattery, resetBattery } = useBatteryStatus();
 
   // New Order Popup States
   const [activeNewOrder, setActiveNewOrder] = useState<any>(null);
@@ -237,7 +266,7 @@ export default function LiveOrdersScreen() {
     // Sync MOCK_ORDERS with the stack queue
     MOCK_ORDERS.forEach(order => {
       if (order.status === 'New') {
-        addOrder({
+        dispatch(addOrder({
           id: order.id,
           customerName: order.customerName,
           itemSummary: `${order.items.length} items • ₹${order.total}`,
@@ -245,19 +274,25 @@ export default function LiveOrdersScreen() {
           expiresAt: (order as any).expiresAt || Date.now() + 300000, // 5 min
           createdAt: Date.now() - (parseInt(order.id) % 100 * 1000), // Fake past time
           priority: order.id === '8223' ? 'high' : 'normal'
-        });
+        }));
       }
     });
-  }, [addOrder]);
+  }, [dispatch]);
 
-  const handleOpenOrder = (incomingOrder: IncomingOrder) => {
-    const fullOrder = MOCK_ORDERS.find(o => o.id === incomingOrder.id);
+  const handleOpenOrder = (incomingOrderId: string) => {
+    const fullOrder = MOCK_ORDERS.find(o => o.id === incomingOrderId);
 
     if (fullOrder) {
       setActiveNewOrder(fullOrder);
       setShowNewOrderSheet(true);
     }
   };
+
+  useEffect(() => {
+    if (params.openOrderId) {
+      handleOpenOrder(params.openOrderId as string);
+    }
+  }, [params.openOrderId]);
 
   useEffect(() => {
     // Scroll filter pill into view when activeFilter changes
@@ -295,7 +330,21 @@ export default function LiveOrdersScreen() {
         isOnline={isOnline}
         onToggleStatus={() => setIsOnline(!isOnline)}
         onPressInfo={() => setIsSwitcherVisible(true)}
+        onTitlePress={() => setShowBatteryDebug(!showBatteryDebug)}
       />
+
+      {isLowBattery && <BatteryWarningBanner level={level} />}
+
+      {showBatteryDebug && (
+        <View style={styles.debugRow}>
+          <Pressable onPress={() => simulateLowBattery(0.12)} style={[styles.debugBtn, { backgroundColor: theme.surfaceSecondary }]}>
+            <Text style={[styles.debugBtnText, { color: theme.text }]}>Simulate 12%</Text>
+          </Pressable>
+          <Pressable onPress={resetBattery} style={[styles.debugBtn, { backgroundColor: theme.surfaceSecondary }]}>
+            <Text style={[styles.debugBtnText, { color: theme.text }]}>Reset Battery</Text>
+          </Pressable>
+        </View>
+      )}
 
       <RestaurantSwitcher
         visible={isSwitcherVisible}
@@ -311,6 +360,8 @@ export default function LiveOrdersScreen() {
       <SearchBar
         value={searchQuery}
         onChangeText={setSearchQuery}
+        onFilterPress={() => setIsFilterVisible(true)}
+        containerStyle={{ paddingHorizontal: 20 }}
       />
 
       {/* FILTERS */}
@@ -393,22 +444,12 @@ export default function LiveOrdersScreen() {
                   <Text style={[styles.emptyText, { color: theme.icon }]}>No {filter.label.toLowerCase()} orders found</Text>
                 </View>
               }
-              ListFooterComponent={<View style={{ height: 120 }} />}
+              ListFooterComponent={<View style={{ height: queue.length > 0 ? 240 : 120 }} />}
             />
           </View>
         )}
       />
 
-      {/* MULTI-ORDER STACK OVERLAY */}
-      {queue.length > 0 && (
-        <OrderStackOverlay
-          orders={queue}
-          onOpenOrder={(order) => {
-            console.log('Opening order stack card:', order.id);
-            handleOpenOrder(order);
-          }}
-        />
-      )}
 
       {/* NEW ORDER POPUP FLOW */}
       <NewOrderSheet
@@ -421,7 +462,7 @@ export default function LiveOrdersScreen() {
           setShowConfirmationSheet(true);
         }}
         onCancel={() => {
-          if (activeNewOrder) removeOrder(activeNewOrder.id);
+          if (activeNewOrder) dispatch(removeOrder(activeNewOrder.id));
           setShowNewOrderSheet(false);
           setActiveNewOrder(null);
         }}
@@ -434,7 +475,7 @@ export default function LiveOrdersScreen() {
       <OrderConfirmationSheet
         visible={showConfirmationSheet}
         onAccept={(prepTime: number) => {
-          if (activeNewOrder) removeOrder(activeNewOrder.id);
+          if (activeNewOrder) dispatch(removeOrder(activeNewOrder.id));
           setShowConfirmationSheet(false);
           setActiveNewOrder(null);
           // Real backend update would happen here
@@ -443,6 +484,16 @@ export default function LiveOrdersScreen() {
           setShowConfirmationSheet(false);
           setShowNewOrderSheet(true);
         }}
+      />
+
+      <FilterSheet
+        visible={isFilterVisible}
+        onClose={() => setIsFilterVisible(false)}
+        onApply={(filters) => {
+          console.log('Selected filters:', filters);
+          setIsFilterVisible(false);
+        }}
+        categories={ORDER_FILTER_CATEGORIES}
       />
     </View>
   );
@@ -476,5 +527,22 @@ const styles = StyleSheet.create({
   emptyText: {
     ...Typography.BodyRegular,
     marginTop: 16,
+  },
+  debugRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  debugBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  debugBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    opacity: 0.6,
   },
 });

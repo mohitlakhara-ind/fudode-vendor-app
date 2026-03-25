@@ -79,7 +79,7 @@ export default function VerifyScreen() {
             styles.backButton, 
             { 
               borderColor: theme.border,
-              backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'
+              backgroundColor: theme.surfaceSecondary
             }
           ]} 
           onPress={() => router.back()}
@@ -124,7 +124,7 @@ export default function VerifyScreen() {
           </View>
         </View>
 
-        {error && <Text style={styles.errorText}>{error as string}</Text>}
+        {error && <Text style={[styles.errorText, { color: theme.error }]}>{error as string}</Text>}
 
         <View style={styles.footer}>
           <PrimaryButton
@@ -205,7 +205,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   errorText: {
-    color: '#FF3B30',
     fontSize: 14,
     marginBottom: 24,
     textAlign: 'center',

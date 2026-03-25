@@ -6,10 +6,13 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { Colors, Typography, Fonts } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
 import { useRouter } from 'expo-router';
+import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 import { Alert } from 'react-native';
 
 const ValuePicker = ({ label, placeholder, options }: any) => {
-  const { colorScheme } = useAppTheme();
+  const { colorScheme, isDark } = useAppTheme();
   const theme = Colors[colorScheme];
 
   const handlePress = () => {
@@ -25,10 +28,10 @@ const ValuePicker = ({ label, placeholder, options }: any) => {
         </TouchableOpacity>
       </View>
       <TouchableOpacity 
-        style={[styles.pickerBox, { borderColor: theme.border, backgroundColor: 'transparent' }]}
+        style={[styles.pickerBox, { borderColor: theme.border + '26', backgroundColor: isDark ? theme.surfaceSecondary + '40' : theme.surfaceSecondary + '10' }]}
         onPress={handlePress}
       >
-        <ThemedText style={[styles.pickerText, { color: theme.textSecondary }]}>{placeholder}</ThemedText>
+        <ThemedText style={[styles.pickerText, { color: theme.text }]}>{placeholder}</ThemedText>
         <CaretDown size={20} color={theme.textSecondary} />
       </TouchableOpacity>
     </View>
@@ -38,23 +41,26 @@ const ValuePicker = ({ label, placeholder, options }: any) => {
 export default function FreebiesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colorScheme } = useAppTheme();
+  const { colorScheme, isDark } = useAppTheme();
   const theme = Colors[colorScheme];
+  const { queue } = useSelector((state: RootState) => state.order);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === 'ios' ? 0 : 10) }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <CaretLeft size={28} color={theme.text} weight="bold" />
-        </Pressable>
-        <ThemedText style={[styles.headerTitle, { color: theme.text }]}>Freebies</ThemedText>
-      </View>
+    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+      <RestaurantHeader
+        restaurantName="Muggs Cafe"
+        locality="Balotra Locality"
+        isOnline={true}
+        onToggleStatus={() => {}}
+        onPressInfo={() => {}}
+        onBack={() => router.back()}
+        title="Freebies"
+      />
 
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: queue.length > 0 ? 240 : 120 }]} showsVerticalScrollIndicator={false}>
         <ThemedText style={[styles.sectionTitle, { color: theme.text }]}>Offer setup</ThemedText>
 
-        <View style={[styles.valueCard, { backgroundColor: theme.surfaceSecondary }]}>
+        <View style={[styles.valueCard, { backgroundColor: isDark ? theme.surfaceSecondary + '40' : theme.surfaceSecondary + '10', borderColor: theme.border + '26', borderWidth: 1 }]}>
           <ValuePicker 
             label="Freebie items" 
             placeholder="Red Pasta" 
@@ -72,12 +78,12 @@ export default function FreebiesScreen() {
       </ScrollView>
 
       {/* Footer */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 16, borderTopColor: theme.border + '26', backgroundColor: theme.background }]}>
         <TouchableOpacity 
-            style={[styles.continueBtn, { backgroundColor: '#FFF' }]}
+            style={[styles.continueBtn, { backgroundColor: theme.primary }]}
             onPress={() => router.push({ pathname: '/growth/offers/create-offer-flow', params: { type: 'freebie' } })}
         >
-          <ThemedText style={styles.continueText}>Continue</ThemedText>
+          <ThemedText style={[styles.continueText, { color: isDark ? '#131313' : '#FFF' }]}>Continue</ThemedText>
         </TouchableOpacity>
       </View>
     </View>
@@ -119,6 +125,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 24,
     marginBottom: 20,
+    borderWidth: 1,
   },
   pickerContainer: {
     gap: 8,
@@ -151,9 +158,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 16,
-    backgroundColor: '#000',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
   },
   continueBtn: {
     height: 56,
@@ -162,7 +167,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   continueText: {
-    color: '#000',
     fontSize: 18,
     fontWeight: '900',
   },

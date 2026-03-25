@@ -29,6 +29,7 @@ export const OrderConfirmationSheet = ({
 }: OrderConfirmationSheetProps) => {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
+  const isDark = colorScheme === 'dark';
   
   const [isItemsAvailable, setIsItemsAvailable] = useState(false);
   const [selectedTime, setSelectedTime] = useState(20);
@@ -97,11 +98,11 @@ export const OrderConfirmationSheet = ({
             >
               <View style={[
                 styles.checkIconWrapper, 
-                { backgroundColor: isItemsAvailable ? successGreen : theme.border + '20' }
+                { backgroundColor: isItemsAvailable ? successGreen : isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)' }
               ]}>
                 <CheckCircle 
                   size={22} 
-                  weight="bold" 
+                  weight={isItemsAvailable ? "bold" : "regular"} 
                   color={isItemsAvailable ? '#FFF' : theme.textSecondary} 
                 />
               </View>

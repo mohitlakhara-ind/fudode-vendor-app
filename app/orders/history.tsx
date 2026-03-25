@@ -122,6 +122,7 @@ export default function OrderHistoryScreen() {
         <SearchBar 
           value={searchQuery}
           onChangeText={setSearchQuery}
+          containerStyle={{ paddingHorizontal: 20 }}
         />
 
         <View style={styles.filterSection}>

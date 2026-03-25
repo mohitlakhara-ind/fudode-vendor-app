@@ -17,6 +17,7 @@ interface AdsFilterSheetProps {
 export const AdsFilterSheet = ({ visible, onClose, onApply }: AdsFilterSheetProps) => {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
+  const isDark = colorScheme === 'dark';
   const [activeCategory, setActiveCategory] = useState<'Duration' | 'Outlets'>('Duration');
   const [selectedDuration, setSelectedDuration] = useState('All');
 
@@ -70,7 +71,7 @@ export const AdsFilterSheet = ({ visible, onClose, onApply }: AdsFilterSheetProp
                       onPress={() => setSelectedDuration(duration)}
                       style={styles.radioRow}
                     >
-                      <View style={[styles.radioOuter, { borderColor: selectedDuration === duration ? theme.primary : theme.textSecondary + '40' }]}>
+                      <View style={[styles.radioOuter, { borderColor: selectedDuration === duration ? theme.primary : isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)' }]}>
                         {selectedDuration === duration && <View style={[styles.radioInner, { backgroundColor: theme.primary }]} />}
                       </View>
                       <ThemedText style={[styles.radioLabel, { color: theme.text }]}>{duration}</ThemedText>

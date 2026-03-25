@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useRouter } from 'expo-router';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Info } from 'phosphor-react-native';
+import { DateTimePicker } from '@/components/ui/DateTimePicker';
 
 const SLIDER_WIDTH = Dimensions.get('window').width - 80; // Rough width after margins/padding
 
@@ -17,6 +18,16 @@ export default function CreateAdScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [percentage, setPercentage] = useState(2.00);
+
+  const [startDate, setStartDate] = useState(new Date());
+  const [isPickerVisible, setIsPickerVisible] = useState(false);
+
+  const formatDate = (date: Date) => {
+    const d = date.getDate().toString().padStart(2, '0');
+    const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][date.getMonth()];
+    const y = date.getFullYear();
+    return `${d} ${m}, ${y}`;
+  };
 
   const panResponder = useRef(
     PanResponder.create({
@@ -83,8 +94,11 @@ export default function CreateAdScreen() {
 
         <View style={styles.formSection}>
           <ThemedText style={[styles.inputLabel, { color: theme.text }]}>Start Date</ThemedText>
-          <Pressable style={[styles.pickerBtn, { backgroundColor: theme.surface, borderColor: theme.border + '20' }]}>
-            <ThemedText style={[styles.pickerText, { color: theme.text }]}>18 Mar, 2026</ThemedText>
+          <Pressable 
+            onPress={() => setIsPickerVisible(true)}
+            style={[styles.pickerBtn, { backgroundColor: theme.surface, borderColor: theme.border + '20' }]}
+          >
+            <ThemedText style={[styles.pickerText, { color: theme.text }]}>{formatDate(startDate)}</ThemedText>
             <CaretDown size={20} color={theme.textSecondary} />
           </Pressable>
         </View>
@@ -114,6 +128,18 @@ export default function CreateAdScreen() {
           style={{ height: 56, borderRadius: 14 }}
         />
       </View>
+
+      <DateTimePicker
+        visible={isPickerVisible}
+        mode="date"
+        initialDate={startDate}
+        onClose={() => setIsPickerVisible(false)}
+        onConfirm={(date) => {
+          setStartDate(date);
+          setIsPickerVisible(false);
+        }}
+        title="Selecting ad start date"
+      />
     </View>
   );
 }

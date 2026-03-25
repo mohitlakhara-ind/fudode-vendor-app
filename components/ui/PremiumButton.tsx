@@ -3,6 +3,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import React from 'react';
 import {
   ActivityIndicator,
+  StyleProp,
   StyleSheet,
   Text,
   TextStyle,
@@ -26,8 +27,8 @@ interface PremiumButtonProps {
   disabled?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
   color?: string; // Force a specific color (e.g. status color)
   onDisabledPress?: () => void;
   progress?: number; // 0 to 1
@@ -87,7 +88,7 @@ export const PremiumButton = ({
     switch (variant) {
       case 'primary':
         return {
-          backgroundColor: progress !== undefined ? (color || theme.primary) + '40' : (color || theme.primary),
+          backgroundColor: progress !== undefined ? (color || theme.primary) + '60' : (color || theme.primary),
           borderWidth: 0,
         };
       case 'secondary':
@@ -109,8 +110,8 @@ export const PremiumButton = ({
       case 'glassy':
         return {
           backgroundColor: (color || theme.primary) + (isDark ? '15' : '10'),
-          borderWidth: 1,
-          borderColor: (color || theme.primary) + (isDark ? '30' : '20'),
+          borderWidth: 1.5,
+          borderColor: (color || theme.primary) + (isDark ? '40' : '30'),
         };
       default:
         return {};
@@ -131,11 +132,11 @@ export const PremiumButton = ({
   const getSizeStyle = () => {
     switch (size) {
       case 'small':
-        return { minHeight: 40, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 };
+        return { minHeight: 40, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 };
       case 'large':
-        return { minHeight: 56, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 16 };
+        return { minHeight: 60, borderRadius: 20, paddingHorizontal: 24, paddingVertical: 16 };
       default:
-        return { minHeight: 48, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12 };
+        return { minHeight: 52, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12 };
     }
   };
 

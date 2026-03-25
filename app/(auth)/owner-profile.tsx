@@ -40,7 +40,7 @@ const FormInput = ({ value, onChangeText, placeholder, keyboardType = 'default',
 
   return (
     <View style={styles.inputContainer}>
-      <View style={[styles.inputWrapper, { backgroundColor: theme.surface, borderColor: error ? '#FF3B30' : theme.border }]}>
+      <View style={[styles.inputWrapper, { backgroundColor: theme.surface, borderColor: error ? theme.error : theme.border }]}>
         <View style={styles.inputIcon}>
           <Icon size={20} color={theme.icon} />
         </View>
@@ -53,7 +53,7 @@ const FormInput = ({ value, onChangeText, placeholder, keyboardType = 'default',
           keyboardType={keyboardType}
         />
       </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>}
     </View>
   );
 };
@@ -68,7 +68,7 @@ const FilePickerTile = ({ label, value, onPick, icon: Icon }: any) => {
       style={[
         styles.fileCardSmall,
         {
-          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
+          backgroundColor: theme.surfaceSecondary,
           borderColor: theme.border,
           width: AADHAAR_CARD_WIDTH
         }
@@ -76,13 +76,13 @@ const FilePickerTile = ({ label, value, onPick, icon: Icon }: any) => {
       onPress={onPick}
       activeOpacity={0.7}
     >
-      <View style={[styles.tileIconWrapper, { backgroundColor: value ? '#34C75920' : theme.primary + '10' }]}>
-        <Icon size={24} color={value ? '#34C759' : theme.primary} weight="duotone" />
+      <View style={[styles.tileIconWrapper, { backgroundColor: value ? theme.success + '20' : theme.primary + '15' }]}>
+        <Icon size={24} color={value ? theme.success : theme.primary} weight="bold" />
       </View>
       <View style={styles.tileInfo}>
         <Text style={[styles.tileLabel, { color: theme.text }]} numberOfLines={1}>{label}</Text>
         {value ? (
-          <CheckCircle size={20} color="#34C759" weight="fill" />
+          <CheckCircle size={20} color={theme.success} weight="fill" />
         ) : (
           <PlusCircle size={20} color={theme.icon} />
         )}
@@ -143,7 +143,7 @@ export default function OwnerProfileScreen() {
             styles.backButton, 
             { 
               borderColor: theme.border,
-              backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'
+              backgroundColor: theme.surfaceSecondary
             }
           ]} 
           onPress={() => router.back()}
@@ -162,9 +162,9 @@ export default function OwnerProfileScreen() {
               onPress={() => Alert.alert('Pick Image')}
               activeOpacity={0.8}
             >
-              <Camera size={40} color={theme.icon} weight="duotone" />
-              <View style={[styles.addAvatarBtn, { backgroundColor: theme.primary }]}>
-                <PlusCircle size={20} color="#fff" weight="fill" />
+              <Camera size={40} color={theme.icon} weight="bold" />
+              <View style={[styles.addAvatarBtn, { backgroundColor: theme.primary, borderColor: theme.surface }]}>
+                <PlusCircle size={20} color={theme.background} weight="fill" />
               </View>
             </TouchableOpacity>
           </View>
@@ -220,7 +220,7 @@ export default function OwnerProfileScreen() {
             />
           </View>
 
-          {error && <Text style={styles.globalError}>{error}</Text>}
+          {error && <Text style={[styles.globalError, { color: theme.error }]}>{error}</Text>}
 
           {/* 7. Full Width Submit Button */}
           <View style={styles.footer}>
@@ -280,7 +280,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
   },
   inputContainer: {
     marginBottom: 16,
@@ -304,7 +303,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   errorText: {
-    color: '#FF3B30',
     fontSize: 11,
     fontWeight: '600',
     marginTop: 4,
@@ -351,7 +349,6 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   globalError: {
-    color: '#FF3B30',
     textAlign: 'center',
     marginVertical: 10,
     fontWeight: '600',

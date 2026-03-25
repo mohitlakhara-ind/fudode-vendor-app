@@ -8,9 +8,12 @@ import { ThemedText } from '@/components/themed-text';
 import { useRouter } from 'expo-router';
 import { PremiumButton } from '@/components/ui/PremiumButton';
 import { Alert } from 'react-native';
+import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 
 const ValuePicker = ({ label, placeholder, options }: any) => {
-  const { colorScheme } = useAppTheme();
+  const { colorScheme, isDark } = useAppTheme();
   const theme = Colors[colorScheme];
 
   const handlePress = () => {
@@ -26,10 +29,10 @@ const ValuePicker = ({ label, placeholder, options }: any) => {
         </TouchableOpacity>
       </View>
       <TouchableOpacity 
-        style={[styles.pickerBox, { borderColor: theme.border, backgroundColor: 'transparent' }]}
+        style={[styles.pickerBox, { borderColor: theme.border + '26', backgroundColor: isDark ? theme.surfaceSecondary + '40' : theme.surfaceSecondary + '10' }]}
         onPress={handlePress}
       >
-        <ThemedText style={[styles.pickerText, { color: theme.textSecondary }]}>{placeholder}</ThemedText>
+        <ThemedText style={[styles.pickerText, { color: theme.text }]}>{placeholder}</ThemedText>
         <CaretDown size={20} color={theme.textSecondary} />
       </TouchableOpacity>
     </View>
@@ -39,26 +42,28 @@ const ValuePicker = ({ label, placeholder, options }: any) => {
 export default function FlatPriceScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colorScheme } = useAppTheme();
+  const { colorScheme, isDark } = useAppTheme();
   const theme = Colors[colorScheme];
-
+  const { queue } = useSelector((state: RootState) => state.order);
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === 'ios' ? 0 : 10) }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <CaretLeft size={28} color={theme.text} weight="bold" />
-        </Pressable>
-        <ThemedText style={[styles.headerTitle, { color: theme.text }]}>Flat Price</ThemedText>
-      </View>
+    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+      <RestaurantHeader
+        restaurantName="Muggs Cafe"
+        locality="Balotra Locality"
+        isOnline={true}
+        onToggleStatus={() => {}}
+        onPressInfo={() => {}}
+        onBack={() => router.back()}
+        title="Flat Price"
+      />
 
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: queue.length > 0 ? 240 : 120 }]} showsVerticalScrollIndicator={false}>
         <ThemedText style={[styles.sectionTitle, { color: theme.text }]}>Offer setup</ThemedText>
 
-        <View style={[styles.valueCard, { backgroundColor: theme.surfaceSecondary }]}>
+        <View style={[styles.valueCard, { backgroundColor: isDark ? theme.surfaceSecondary + '40' : theme.surfaceSecondary + '10', borderColor: theme.border + '26', borderWidth: 1 }]}>
           <View style={styles.cardHeader}>
-            <View style={[styles.iconWrapper, { backgroundColor: '#FF4D4D20' }]}>
-                <Tag size={24} color="#FF4D4D" weight="fill" />
+            <View style={[styles.iconWrapper, { backgroundColor: theme.primary + '15' }]}>
+                <Tag size={24} color={theme.primary} weight="fill" />
             </View>
             <ThemedText style={[styles.cardTitle, { color: theme.text }]}>Offer value #1</ThemedText>
           </View>
@@ -78,19 +83,19 @@ export default function FlatPriceScreen() {
           />
         </View>
 
-        <TouchableOpacity style={[styles.addValueBtn, { borderColor: 'rgba(255,255,255,0.2)' }]}>
+        <TouchableOpacity style={[styles.addValueBtn, { borderColor: theme.border + '40' }]}>
           <Plus size={20} color={theme.textSecondary} weight="bold" />
           <ThemedText style={[styles.addValueText, { color: theme.textSecondary }]}>Add another value</ThemedText>
         </TouchableOpacity>
       </ScrollView>
 
       {/* Footer */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 16, borderTopColor: theme.border + '26', backgroundColor: theme.background }]}>
         <TouchableOpacity 
-            style={[styles.continueBtn, { backgroundColor: '#333' }]}
+            style={[styles.continueBtn, { backgroundColor: theme.primary }]}
             onPress={() => router.push({ pathname: '/growth/offers/create-offer-flow', params: { type: 'flat' } })}
         >
-          <ThemedText style={styles.continueText}>Continue</ThemedText>
+          <ThemedText style={[styles.continueText, { color: isDark ? '#131313' : '#FFF' }]}>Continue</ThemedText>
         </TouchableOpacity>
       </View>
     </View>
@@ -132,6 +137,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
+    borderWidth: 1,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -196,9 +202,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 16,
-    backgroundColor: '#121212',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
   },
   continueBtn: {
     height: 56,
@@ -207,7 +211,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   continueText: {
-    color: '#999',
     fontSize: 18,
     fontWeight: '900',
   },

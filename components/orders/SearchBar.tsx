@@ -2,24 +2,28 @@ import { Colors } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { MagnifyingGlass, Sliders } from 'phosphor-react-native';
 import React from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View, ViewStyle, StyleProp } from 'react-native';
 
 interface SearchBarProps {
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
+  onFilterPress?: () => void;
+  containerStyle?: StyleProp<ViewStyle>;
 }
 
 export const SearchBar = ({
   value,
   onChangeText,
   placeholder = "Search by ID or Customer...",
+  onFilterPress,
+  containerStyle,
 }: SearchBarProps) => {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
 
   return (
-    <View style={styles.searchSection}>
+    <View style={[styles.searchSection, containerStyle]}>
       <View style={[styles.searchBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <MagnifyingGlass size={20} color={theme.icon} />
         <TextInput
@@ -29,7 +33,9 @@ export const SearchBar = ({
           value={value}
           onChangeText={onChangeText}
         />
-        <Sliders size={20} color={theme.primary} />
+        <Pressable onPress={onFilterPress} style={styles.filterButton}>
+          <Sliders size={20} color={theme.primary} />
+        </Pressable>
       </View>
     </View>
   );
@@ -37,7 +43,6 @@ export const SearchBar = ({
 
 const styles = StyleSheet.create({
   searchSection: {
-    paddingHorizontal: 20,
     marginBottom: 16,
   },
   searchBar: {
@@ -54,4 +59,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
   },
+  filterButton: {
+    padding: 4,
+    marginRight: -4,
+  }
 });

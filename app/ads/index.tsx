@@ -69,7 +69,7 @@ export default function AdsScreen() {
               <View style={[styles.idCard, { backgroundColor: theme.surface, borderColor: theme.border + '20' }]}>
                 <View style={styles.idLeft}>
                   <SlidersHorizontal size={24} color={theme.primary} />
-                  <ThemedText style={[styles.idText, { color: theme.text }]} numberOfLines={1}>
+                  <ThemedText style={[styles.idText, { color: theme.text }]}>
                     {ID_SELECTOR_TEXT}
                   </ThemedText>
                 </View>

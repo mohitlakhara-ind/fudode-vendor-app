@@ -10,8 +10,8 @@ const SafetyItem = ({ icon: Icon, title, description }: any) => {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
   return (
-    <View style={[styles.safetyItem, { backgroundColor: theme.surfaceSecondary + '50' }]}>
-      <View style={[styles.iconBox, { backgroundColor: theme.primary + '10' }]}>
+    <View style={[styles.safetyItem, { backgroundColor: theme.surfaceSecondary }]}>
+      <View style={[styles.iconBox, { backgroundColor: theme.primary + '15' }]}>
         <Icon size={24} color={theme.primary} weight="fill" />
       </View>
       <View style={styles.contentBox}>
@@ -69,7 +69,7 @@ export default function SafetyScreen() {
             If you suspect any unauthorized activity on your account, please contact our support team immediately.
           </Text>
           <Pressable style={[styles.contactBtn, { backgroundColor: theme.primary }]}>
-            <Text style={styles.contactBtnText}>Report Urgently</Text>
+            <Text style={[styles.contactBtnText, { color: theme.background }]}>Report Urgently</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -121,5 +121,5 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
   },
-  contactBtnText: { ...Typography.H3, color: '#000' }
+  contactBtnText: { ...Typography.H3 },
 });

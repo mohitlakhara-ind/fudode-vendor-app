@@ -10,15 +10,15 @@ export const PhotoPromoBanner = () => {
   const theme = Colors[colorScheme];
 
   return (
-    <View style={[styles.promoBanner, { backgroundColor: '#0D2451' }]}>
+    <View style={[styles.promoBanner, { backgroundColor: theme.surfaceSecondary, borderColor: theme.border }]}>
       <View style={styles.promoContent}>
         <ThemedText style={styles.promoTitle}>Menu-ready photos in seconds</ThemedText>
         <ThemedText style={styles.promoSubtitle}>
           Click a photo of a prepared dish and enhance while you add it to menu
         </ThemedText>
-        <Pressable style={[styles.learnMoreBtn, { backgroundColor: '#1A73E8' }]}>
-          <Plus size={16} color="#FFF" weight="bold" />
-          <ThemedText style={styles.learnMoreText}>Learn more</ThemedText>
+        <Pressable style={[styles.learnMoreBtn, { backgroundColor: theme.primary }]}>
+          <Plus size={16} color={theme.background} weight="bold" />
+          <ThemedText style={[styles.learnMoreText, { color: theme.background }]}>Learn more</ThemedText>
         </Pressable>
       </View>
       <View style={styles.promoImageWrapper}>

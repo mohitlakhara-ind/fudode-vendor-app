@@ -7,12 +7,17 @@ import { ReviewCard } from '@/components/reviews/ReviewCard';
 import { ThemedText } from '@/components/themed-text';
 import { MOCK_REVIEWS, RATING_SUMMARY } from '@/constants/mockReviews';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
-import { Colors, Typography, StatusColors } from '@/constants/theme';
+import { Colors, Typography, StatusColors, Fonts } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { ChatCircleDots, Info } from 'phosphor-react-native';
+import { useRouter } from 'expo-router';
+import { CalendarBlank, ChatCircleDots, Info, Funnel, CaretDown } from 'phosphor-react-native';
 import React, { useState } from 'react';
-import { ScrollView, StatusBar, StyleSheet, View } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, View, Pressable, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
+import { DateRangePickerSheet } from '@/components/common/DateRangePickerSheet';
+import { FilterSheet } from '@/components/common/FilterSheet';
 
 const OWNED_RESTAURANTS = [
   { id: '1', name: 'Muggs Cafe', locality: 'Balotra Locality' },
@@ -20,6 +25,7 @@ const OWNED_RESTAURANTS = [
 ];
 
 export default function ReviewsScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
@@ -29,6 +35,37 @@ export default function ReviewsScreen() {
   const [isOnline, setIsOnline] = useState(true);
   const [currentRestaurant, setCurrentRestaurant] = useState(OWNED_RESTAURANTS[0]);
   const [isSwitcherVisible, setIsSwitcherVisible] = useState(false);
+  const { queue } = useSelector((state: RootState) => state.order);
+
+  // Bottom Sheet States
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedRange, setSelectedRange] = useState('Last 5 days');
+  const [activeFilters, setActiveFilters] = useState({});
+
+  const filterCategories = [
+    {
+      id: 'issue_type',
+      label: 'Issue type',
+      options: [
+        { id: 'wrong_item', label: 'Wrong item' },
+        { id: 'quality', label: 'Food quality' },
+        { id: 'packaging', label: 'Packaging' },
+        { id: 'spillage', label: 'Spillage' },
+      ]
+    },
+    {
+      id: 'reasons',
+      label: 'Reasons',
+      options: [
+        { id: 'dismissed', label: 'Dismissed' },
+        { id: 'winback', label: 'Winback' },
+        { id: 'open', label: 'Open' },
+        { id: 'resolved', label: 'Resolved' },
+        { id: 'expired', label: 'Expired' },
+      ]
+    }
+  ];
 
   const filteredReviews = MOCK_REVIEWS.filter(rev =>
     rev.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -39,6 +76,13 @@ export default function ReviewsScreen() {
     if (rating >= 4) return StatusColors.Ready;
     if (rating >= 3) return StatusColors.Preparing;
     return StatusColors.Late;
+  };
+
+  const handleReviewPress = (id: string) => {
+    router.push({
+      pathname: '/reviews/[id]',
+      params: { id }
+    });
   };
 
   return (
@@ -65,20 +109,45 @@ export default function ReviewsScreen() {
       />
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: queue.length > 0 ? 270 : 150 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Tab Pills */}
         <TabSwitcher 
-        tabs={['Review complaints', 'Orders review']}
-        counts={{
-          'Review complaints': 0,
-          'Orders review': MOCK_REVIEWS.length
-        }}
-        activeTab={activeTab === 'complaints' ? 'Review complaints' : 'Orders review'}
-        onTabChange={(tab: string) => setActiveTab(tab === 'Review complaints' ? 'complaints' : 'reviews')}
-        containerStyle={{ marginHorizontal: 20, marginBottom: 16 }}
-      />
+          tabs={['Complaints', 'Reviews']}
+          counts={{
+            'Complaints': 0,
+            'Reviews': MOCK_REVIEWS.length
+          }}
+          activeTab={activeTab === 'complaints' ? 'Complaints' : 'Reviews'}
+          onTabChange={(tab: string) => setActiveTab(tab === 'Complaints' ? 'complaints' : 'reviews')}
+          containerStyle={{ marginHorizontal: 20, marginVertical: 16 }}
+        />
+
+        {/* Unified Control Row */}
+        <View style={styles.controlRow}>
+          <Pressable 
+            style={[styles.datePicker, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <CalendarBlank size={20} color={theme.text} weight="bold" />
+            <View style={styles.datePickerContent}>
+              <Text style={[styles.datePickerLabel, { color: theme.text }]}>{selectedRange}</Text>
+              <Text style={[styles.datePickerSub, { color: theme.textSecondary }]}>Custom Range</Text>
+            </View>
+            <CaretDown size={14} color={theme.textSecondary} weight="bold" />
+          </Pressable>
+
+          <Pressable 
+            style={[styles.filterBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            onPress={() => setShowFilters(true)}
+          >
+            <Funnel size={22} color={theme.text} weight="bold" />
+            {Object.keys(activeFilters).length > 0 && (
+              <View style={[styles.filterBadge, { backgroundColor: theme.primary, borderColor: theme.surface }]} />
+            )}
+          </Pressable>
+        </View>
 
         {activeTab === 'reviews' ? (
           <>
@@ -93,37 +162,69 @@ export default function ReviewsScreen() {
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 placeholder="Search reviews"
+                containerStyle={{ paddingHorizontal: 20 }}
               />
             </View>
 
-            <View style={styles.reviewHeader}>
-              <View style={styles.reviewTitleRow}>
-                <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-                  Reviews ({filteredReviews.length})
+            <View style={styles.sectionHeader}>
+              <View style={styles.headerTop}>
+                <ThemedText style={[styles.sectionTitle, { color: theme.text, fontFamily: Fonts.bold }]}>
+                  Customer Reviews
                 </ThemedText>
+                <View style={[styles.countBadge, { backgroundColor: theme.surfaceSecondary }]}>
+                  <ThemedText style={[styles.countText, { color: theme.text }]}>
+                    {filteredReviews.length}
+                  </ThemedText>
+                </View>
               </View>
-              <View style={styles.infoBox}>
-                <Info size={14} color={theme.icon} />
-                <ThemedText style={styles.infoText}>Delivery reviews are only visible to you</ThemedText>
+              <View style={styles.infoRow}>
+                <Info size={14} color={theme.textSecondary} weight="bold" />
+                <ThemedText style={[styles.infoText, { color: theme.textSecondary }]}>
+                  Delivery reviews are private to you
+                </ThemedText>
               </View>
             </View>
 
             {filteredReviews.map(review => (
-              <ReviewCard key={review.id} review={review} />
+              <ReviewCard 
+                key={review.id} 
+                review={review} 
+                onReply={() => handleReviewPress(review.id)}
+              />
             ))}
           </>
         ) : (
           <View style={styles.emptyContainer}>
-            <View style={[styles.emptyIconCircle, { backgroundColor: theme.surfaceSecondary }]}>
-              <View style={{ opacity: 0.3 }}>
-                <ChatCircleDots size={48} color={theme.icon} weight="thin" />
-              </View>
+            <View style={[styles.emptyIconCircle, { backgroundColor: theme.surfaceSecondary, borderColor: theme.border }]}>
+              <ChatCircleDots size={48} color={theme.textSecondary} weight="bold" />
             </View>
-            <ThemedText style={styles.emptyTitle}>No complaints found!</ThemedText>
-            <ThemedText style={styles.emptySubtitle}>We couldn't find any complaints for the selected date range.</ThemedText>
+            <ThemedText style={[styles.emptyTitle, { color: theme.text, fontFamily: Fonts.bold }]}>No complaints yet</ThemedText>
+            <ThemedText style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+              We couldn't find any complaints for the selected range. That's a good sign!
+            </ThemedText>
           </View>
         )}
       </ScrollView>
+
+      <DateRangePickerSheet
+        visible={showDatePicker}
+        onClose={() => setShowDatePicker(false)}
+        selectedRange={selectedRange}
+        onApply={(range) => {
+          setSelectedRange(range);
+          setShowDatePicker(false);
+        }}
+      />
+
+      <FilterSheet
+        visible={showFilters}
+        onClose={() => setShowFilters(false)}
+        categories={filterCategories}
+        onApply={(filters) => {
+          setActiveFilters(filters);
+          setShowFilters(false);
+        }}
+      />
     </View>
   );
 }
@@ -131,43 +232,94 @@ export default function ReviewsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: {
-    paddingBottom: 120,
+    paddingBottom: 150,
   },
-  tabScrollView: {
-    marginHorizontal: 10,
-  },
-  tabContainer: {
-    paddingHorizontal: 16,
+  controlRow: {
     flexDirection: 'row',
-    paddingVertical: 12,
-    gap: 2,
+    gap: 12,
+    paddingHorizontal: 16,
+    marginBottom: 24,
+  },
+  datePicker: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    height: 64,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 12,
+  },
+  datePickerContent: {
+    flex: 1,
+  },
+  datePickerLabel: {
+    ...Typography.H3,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  datePickerSub: {
+    ...Typography.Caption,
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 1,
+    opacity: 0.6,
+  },
+  filterBtn: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: 18,
+    right: 18,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#FFF',
   },
   searchSection: {
     marginBottom: 24,
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
   },
-  reviewHeader: {
-    marginBottom: 16,
-    paddingHorizontal: 16,
+  sectionHeader: {
+    marginBottom: 20,
+    paddingHorizontal: 20,
   },
-  reviewTitleRow: {
+  headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    gap: 12,
+    marginBottom: 6,
   },
   sectionTitle: {
-    ...Typography.Display,
-    fontSize: 22,
+    ...Typography.H2,
+    fontSize: 20,
   },
-  infoBox: {
+  countBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  countText: {
+    ...Typography.Caption,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    opacity: 0.6,
   },
   infoText: {
     ...Typography.Caption,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   emptyContainer: {
     padding: 60,
@@ -180,7 +332,9 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderStyle: 'dashed',
   },
   emptyTitle: {
     ...Typography.H2,
@@ -190,7 +344,8 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     ...Typography.Caption,
     textAlign: 'center',
-    opacity: 0.5,
-    lineHeight: 20,
+    fontSize: 14,
+    lineHeight: 22,
+    paddingHorizontal: 20,
   },
 });

@@ -1,4 +1,4 @@
-import { FeedbackSheet, TechnicalIssueSheet } from '@/components/help/HelpBottomSheets';
+import { FeedbackSheet, TechnicalIssueSheet, LanguageSelectionSheet } from '@/components/help/HelpBottomSheets';
 import { GlassView } from '@/components/ui/GlassView';
 import { Colors, Typography } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -41,8 +41,8 @@ const CategoryItem = ({ icon: Icon, title, subtitle, onPress }: any) => {
       onPress={onPress}
       style={({ pressed }) => [
         styles.categoryItem,
-        { borderBottomColor: theme.border + '15' },
-        pressed && { backgroundColor: theme.surfaceSecondary + '50' }
+        { borderBottomColor: theme.border },
+        pressed && { backgroundColor: theme.surfaceSecondary }
       ]}
     >
       <View style={styles.categoryLeft}>
@@ -97,6 +97,8 @@ export default function HelpCenterScreen() {
 
   const [techSheetVisible, setTechSheetVisible] = React.useState(false);
   const [feedbackSheetVisible, setFeedbackSheetVisible] = React.useState(false);
+  const [languageSheetVisible, setLanguageSheetVisible] = React.useState(false);
+  const [currentLanguage, setCurrentLanguage] = React.useState('en');
 
   const categories = [
     {
@@ -183,7 +185,10 @@ export default function HelpCenterScreen() {
           <Text style={[styles.headerTitle, { color: theme.text }]}>Help centre</Text>
         </View>
         <View style={styles.headerRight}>
-          <Pressable style={styles.headerIcon}>
+          <Pressable 
+            style={styles.headerIcon}
+            onPress={() => setLanguageSheetVisible(true)}
+          >
             <Translate size={24} color={theme.primary} weight="fill" />
           </Pressable>
           <Pressable style={styles.headerIcon}>
@@ -244,7 +249,7 @@ export default function HelpCenterScreen() {
               <Text style={[styles.supportSubtitle, { color: theme.textSecondary }]}>Our support team is available 24/7</Text>
             </View>
             <Pressable style={[styles.contactButton, { backgroundColor: theme.primary }]}>
-              <Text style={styles.contactButtonText}>Contact Support</Text>
+              <Text style={[styles.contactButtonText, { color: theme.background }]}>Contact Support</Text>
             </Pressable>
           </View>
         </View>
@@ -266,6 +271,17 @@ export default function HelpCenterScreen() {
         onFinish={(msg: string) => {
           console.log('Feedback sent:', msg);
           setFeedbackSheetVisible(false);
+        }}
+      />
+
+      <LanguageSelectionSheet
+        visible={languageSheetVisible}
+        onClose={() => setLanguageSheetVisible(false)}
+        currentLanguage={currentLanguage}
+        onFinish={(lang: string) => {
+          setCurrentLanguage(lang);
+          setLanguageSheetVisible(false);
+          console.log('Language changed to:', lang);
         }}
       />
     </View>
@@ -438,7 +454,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   contactButtonText: {
-    color: '#fff',
     ...Typography.H3,
     fontSize: 13,
   }

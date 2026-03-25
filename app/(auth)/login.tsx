@@ -63,7 +63,7 @@ export default function LoginScreen() {
                 styles.backButton, 
                 { 
                   borderColor: theme.border,
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'
+                  backgroundColor: theme.surfaceSecondary
                 }
               ]} 
               onPress={() => router.back()}
@@ -78,14 +78,14 @@ export default function LoginScreen() {
                     <Defs>
                       <SvgLinearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
                         <Stop offset="0" stopColor={theme.primary} />
-                        <Stop offset="1" stopColor="#E6B800" />
+                        <Stop offset="1" stopColor={theme.primaryDark || theme.primary} />
                       </SvgLinearGradient>
                     </Defs>
                     <Rect x="0" y="0" width="100%" height="100%" fill="url(#logoGrad)" />
                   </Svg>
                   <Image
                     source={{ uri: 'https://cdn.fudode.in/public/Logo.png' }}
-                    style={[styles.logo, { tintColor: colorScheme === 'dark' ? '#000' : '#fff' }]}
+                    style={[styles.logo, { tintColor: theme.background }]}
                     resizeMode="contain"
                   />
                 </View>

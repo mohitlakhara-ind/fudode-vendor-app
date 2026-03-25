@@ -25,54 +25,49 @@ export const ReviewCard = ({ review, onReply }: ReviewCardProps) => {
   return (
     <AnimatedCard>
       <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        {/* Header: Order Info */}
-        <TouchableOpacity style={[styles.header, { backgroundColor: theme.surfaceSecondary }]} activeOpacity={0.7}>
-          <ThemedText style={[styles.orderLabel, { color: theme.textSecondary }]}>
-            Order {review.orderId} • {review.restaurantName}
-          </ThemedText>
-          <CaretRight size={14} color={theme.primary} weight="bold" />
-        </TouchableOpacity>
-
-        {/* User Info */}
-        <View style={styles.userContainer}>
+        <View style={styles.header}>
           <Image 
             source={{ uri: review.userImage || 'https://i.pravatar.cc/150' }} 
-            style={[styles.avatar, { borderColor: theme.border, borderWidth: 1 }]} 
+            style={[styles.avatar, { borderColor: theme.border }]} 
           />
           <View style={styles.userInfo}>
-            <ThemedText style={[styles.userName, { color: theme.text }]}>
-              {review.userName}
-            </ThemedText>
-            <ThemedText style={[styles.orderCount, { color: theme.textSecondary }]}>
-              {review.userOrderCount} orders with you
+            <View style={styles.nameRow}>
+              <ThemedText style={[styles.userName, { fontFamily: Fonts.bold }]}>{review.userName}</ThemedText>
+              <View style={[styles.ratingBadge, { backgroundColor: getRatingColor(review.rating) }]}>
+                <ThemedText style={styles.ratingText}>{review.rating}</ThemedText>
+                <Star size={10} color="#FFF" weight="bold" />
+              </View>
+            </View>
+            <ThemedText style={[styles.orderMeta, { color: theme.textSecondary }]}>
+              Order {review.orderId} • {review.userOrderCount} orders
             </ThemedText>
           </View>
         </View>
 
-        {/* Review Content */}
-        <View style={[styles.contentBox, { backgroundColor: theme.surfaceSecondary }]}>
-          <View style={styles.ratingRow}>
-            <View style={[styles.ratingBadge, { backgroundColor: getRatingColor(review.rating) }]}>
-              <ThemedText style={styles.ratingText}>{review.rating}</ThemedText>
-              <Star size={12} color="#fff" weight="fill" />
-            </View>
-            <ThemedText style={[styles.dateText, { color: theme.textSecondary }]}>{review.date}</ThemedText>
+        <View style={styles.content}>
+          <ThemedText style={[styles.comment, { color: theme.text }]}>
+            {review.comment}
+          </ThemedText>
+          <ThemedText style={[styles.dateText, { color: theme.textSecondary }]}>
+            {review.date}
+          </ThemedText>
+        </View>
+
+        <View style={[styles.footer, { borderTopColor: theme.border, backgroundColor: theme.surfaceSecondary }]}>
+          <View style={styles.metrics}>
+            <ChatCircleDots size={18} color={theme.textSecondary} weight="bold" />
+            <ThemedText style={[styles.metricText, { color: theme.textSecondary }]}>
+              {review.replyCount} {review.replyCount === 1 ? 'reply' : 'replies'}
+            </ThemedText>
           </View>
-          <ThemedText style={[styles.comment, { color: theme.text }]}>{review.comment}</ThemedText>
-          
-          <View style={styles.actionRow}>
-            <View style={[styles.replyBadge, { backgroundColor: theme.background }]}>
-              <ChatCircleDots size={16} color={theme.textSecondary} />
-              <ThemedText style={[styles.replyCount, { color: theme.textSecondary }]}>{review.replyCount}</ThemedText>
-            </View>
-            <TouchableOpacity 
-              style={styles.replyButton} 
-              onPress={() => onReply?.(review.id)}
-              activeOpacity={0.6}
-            >
-              <ThemedText style={[styles.replyText, { color: theme.primary }]}>Reply</ThemedText>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity 
+            style={[styles.replyBtn, { backgroundColor: theme.surfaceSecondary }]}
+            onPress={() => onReply?.(review.id)}
+            activeOpacity={0.7}
+          >
+            <ThemedText style={[styles.replyBtnText, { color: theme.text }]}>View & Reply</ThemedText>
+            <CaretRight size={14} color={theme.text} weight="bold" />
+          </TouchableOpacity>
         </View>
       </View>
     </AnimatedCard>
@@ -81,102 +76,101 @@ export const ReviewCard = ({ review, onReply }: ReviewCardProps) => {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 20,
+    borderRadius: 24,
     borderWidth: 1,
     marginBottom: 16,
+    marginHorizontal: 16,
     overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',
+    padding: 20,
+    paddingBottom: 12,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-  },
-  orderLabel: {
-    ...Typography.Caption,
-    opacity: 0.6,
-  },
-  userContainer: {
-    flexDirection: 'row',
-    padding: 16,
-    alignItems: 'center',
-    gap: 12,
+    gap: 14,
   },
   avatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
+    borderWidth: 1,
   },
   userInfo: {
     flex: 1,
   },
+  nameRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   userName: {
     ...Typography.H3,
-  },
-  orderCount: {
-    ...Typography.Caption,
-    opacity: 0.5,
-    marginTop: 2,
-  },
-  contentBox: {
-    margin: 12,
-    marginTop: 0,
-    padding: 16,
-    borderRadius: 16,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 8,
+    fontSize: 15,
   },
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
     gap: 4,
   },
   ratingText: {
-    ...Typography.Caption,
-    fontWeight: '800',
-    color: '#fff',
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '900',
   },
-  dateText: {
+  orderMeta: {
     ...Typography.Caption,
-    opacity: 0.5,
-    fontWeight: '500',
+    fontSize: 12,
+    marginTop: 1,
+  },
+  content: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    gap: 10,
   },
   comment: {
     ...Typography.BodyRegular,
-    marginBottom: 12,
+    fontSize: 14,
+    lineHeight: 22,
   },
-  actionRow: {
+  dateText: {
+    ...Typography.Caption,
+    fontSize: 11,
+    fontWeight: '600',
+    opacity: 0.7,
+  },
+  footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    // backgroundColor moved to inline style
   },
-  replyBadge: {
+  metrics: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  metricText: {
+    ...Typography.Caption,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  replyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
   },
-  replyCount: {
-    ...Typography.Caption,
-    fontWeight: '700',
-    opacity: 0.7,
-  },
-  replyButton: {
-    paddingHorizontal: 4,
-  },
-  replyText: {
-    ...Typography.BodyRegular,
-    fontWeight: '700',
+  replyBtnText: {
+    ...Typography.H3,
+    fontSize: 13,
+    fontWeight: '800',
   },
 });

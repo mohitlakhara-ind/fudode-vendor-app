@@ -134,16 +134,16 @@ export const OrderCardContent = ({
   }, [status, createdAt, estimatedReadyTime]);
 
   const getProgressColor = (p: number) => {
-    // Lighter Shades: Pastels
-    // Green (#6EE7B7) -> Yellow (#FDE047) -> Red (#FCA5A5)
+    // Original Shades: Vibrant
+    // Green (#10B981) -> Orange (#FF8800) -> Red (#EF4444)
     if (p <= 0.5) {
-      // Interpolate Green to Yellow
+      // Interpolate Green to Orange
       const ratio = p * 2;
-      return interpolateRgb('#6EE7B7', '#FDE047', ratio);
+      return interpolateRgb('#10B981', '#FF8800', ratio);
     } else {
-      // Interpolate Yellow to Red
+      // Interpolate Orange to Red
       const ratio = Math.min(1, (p - 0.5) * 2);
-      return interpolateRgb('#FDE047', '#FCA5A5', ratio);
+      return interpolateRgb('#FF8800', '#EF4444', ratio);
     }
   };
 
@@ -343,7 +343,7 @@ export const OrderCard = (props: OrderCardProps) => {
 
   return (
     <AnimatedCard>
-      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: statusColor + '40' }]}>
+      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <OrderCardContent {...props} />
       </View>
     </AnimatedCard>
@@ -353,7 +353,7 @@ export const OrderCard = (props: OrderCardProps) => {
 const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
-    borderWidth: 2,
+    borderWidth: 1,
     padding: 16,
     marginBottom: 20,
     // Shadow properties for iOS
@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
     ...Typography.BodyRegular,
   },
   offerCard: {
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderRadius: 12,
     padding: 12,
     flexDirection: 'row',

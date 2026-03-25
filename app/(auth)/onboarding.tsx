@@ -79,8 +79,8 @@ export default function OnboardingScreen() {
                 style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
                 onPress={() => handleSelectRestaurant(item.restaurant.id)}
               >
-                <View style={[styles.iconBox, { backgroundColor: theme.primary + '10' }]}>
-                  <Storefront size={24} color={theme.primary} weight="duotone" />
+                <View style={[styles.iconBox, { backgroundColor: theme.surfaceSecondary }]}>
+                  <Storefront size={24} color={theme.primary} weight="bold" />
                 </View>
                 <View style={styles.cardInfo}>
                   <Text style={[styles.cardTitle, { color: theme.text }]}>{item.restaurant.name}</Text>
@@ -99,13 +99,13 @@ export default function OnboardingScreen() {
             onPress={handleRegisterNew}
           >
             <View style={styles.actionIcon}>
-              <Plus size={24} color="#FFF" weight="bold" />
+              <Plus size={24} color={theme.background} weight="bold" />
             </View>
             <View style={styles.cardInfo}>
-              <Text style={styles.actionTitle}>Add Your Own Restaurant</Text>
-              <Text style={styles.actionSub}>Setup your business and start selling</Text>
+              <Text style={[styles.actionTitle, { color: theme.background }]}>Add Your Own Restaurant</Text>
+              <Text style={[styles.actionSub, { color: theme.background, opacity: 0.8 }]}>Setup your business and start selling</Text>
             </View>
-            <CaretRight size={20} color="#FFF" />
+            <CaretRight size={20} color={theme.background} />
           </TouchableOpacity>
         </View>
 
@@ -199,10 +199,6 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 24,
     marginBottom: 12,
-    shadowColor: '#FF6600',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
     elevation: 8,
   },
   actionIcon: {
@@ -210,13 +206,11 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   actionTitle: {
-    color: '#FFF',
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 2,
   },
   actionSub: {
-    color: 'rgba(255,255,255,0.8)',
     fontSize: 14,
     fontWeight: '500',
   },

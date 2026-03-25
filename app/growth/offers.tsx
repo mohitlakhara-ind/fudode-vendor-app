@@ -10,6 +10,13 @@ import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
 import { PremiumButton } from '@/components/ui/PremiumButton';
+import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
+import { RestaurantSwitcher } from '@/components/orders/RestaurantSwitcher';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
+import { DateTimePicker } from '@/components/ui/DateTimePicker';
+
+
 
 import Svg, { Circle, Path } from 'react-native-svg';
 
@@ -50,68 +57,98 @@ export default function OffersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colorScheme } = useAppTheme();
-  const isDark = colorScheme === 'dark';
   const theme = Colors[colorScheme];
+  const isDark = colorScheme === 'dark';
+  const Obsidian = theme.background;
+  const Gold = theme.primary;
+  const GhostBorder = theme.border + '26';
+
   const [activeTab, setActiveTab] = useState<'create' | 'track'>('create');
   const [activeFilter, setActiveFilter] = useState('Active');
+  
+  const [isOnline, setIsOnline] = useState(true);
+  const [currentRestaurant, setCurrentRestaurant] = useState({ id: '1', name: 'Muggs Cafe', locality: 'Balotra Locality' });
+  const [isSwitcherVisible, setIsSwitcherVisible] = useState(false);
+  const { queue } = useSelector((state: RootState) => state.order);
+
+  const [perfDate, setPerfDate] = useState(new Date());
+  const [isPickerVisible, setIsPickerVisible] = useState(false);
+
+  const formatDate = (date: Date) => {
+    const d = date.getDate().toString().padStart(2, '0');
+    const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][date.getMonth()];
+    const y = date.getFullYear();
+    return `${d} ${m} ${y}`;
+  };
+
+  const OWNED_RESTAURANTS = [
+    { id: '1', name: 'Muggs Cafe', locality: 'Balotra Locality' },
+    { id: '2', name: 'Pizza Palace', locality: 'HSR Layout, Bangalore' },
+  ];
 
   const renderCreateTab = () => (
     <View style={styles.createContainer}>
       <ThemedText style={[styles.subHeader, { color: theme.textSecondary }]}>CUSTOM OFFER FOR YOU</ThemedText>
-      <View style={[styles.goalBanner, { backgroundColor: '#581C87' }]}>
+      <View style={[styles.goalBanner, { backgroundColor: isDark ? '#1A1A1A' : '#F5F5F5', borderColor: GhostBorder, borderWidth: 1, overflow: 'hidden' }]}>
         <View style={styles.goalBannerContent}>
-          <ThemedText style={[styles.goalBannerTitle, { fontFamily: Fonts.rounded }]}>What's your discounting goal?</ThemedText>
+          <ThemedText style={[styles.goalBannerTitle, { fontFamily: Fonts.bold, color: theme.text }]}>What's your discounting goal?</ThemedText>
         </View>
         <View style={styles.goalTarget}>
-          <View style={[styles.targetOuter, { borderColor: theme.primaryLight }]}>
-            <View style={[styles.targetMid, { borderColor: theme.primaryLight }]} />
+          <View style={[styles.targetOuter, { borderColor: Gold + '26' }]}>
+            <View style={[styles.targetMid, { borderColor: Gold + '40' }]} />
           </View>
         </View>
       </View>
 
-      {MOCK_GROWTH_GOALS.map((goal) => (
-        <TouchableOpacity
-          key={goal.id}
-          style={[styles.goalItem, { borderBottomColor: theme.border }]}
-          onPress={() => router.push({ pathname: '/growth/create-goal', params: { goalId: goal.id, title: goal.title } })}
-        >
-          <View style={[styles.goalIconContainer, { backgroundColor: theme.surfaceSecondary }]}>
-            <ThemedText style={{ fontSize: 24 }}>⭐</ThemedText>
+      {MOCK_GROWTH_GOALS.length > 0 ? (
+        MOCK_GROWTH_GOALS.map((goal) => (
+          <TouchableOpacity
+            key={goal.id}
+            style={[styles.goalItem, { borderBottomColor: theme.border }]}
+            onPress={() => router.push({ pathname: '/growth/create-goal', params: { goalId: goal.id, title: goal.title } })}
+          >
+            <View style={[styles.goalIconContainer, { backgroundColor: Gold + '15', borderColor: GhostBorder, borderWidth: 1 }]}>
+              <ThemedText style={{ fontSize: 24 }}>⭐</ThemedText>
+            </View>
+            <View style={styles.goalText}>
+              <ThemedText style={[styles.goalTitle, { color: theme.text, fontFamily: Fonts.bold }]}>{goal.title}</ThemedText>
+              <ThemedText style={[styles.goalDesc, { color: theme.textSecondary }]}>{goal.description}</ThemedText>
+            </View>
+            <CaretRight size={20} color={theme.primary} weight="bold" />
+          </TouchableOpacity>
+        ))
+      ) : (
+        <View style={styles.emptyState}>
+          <View style={{ opacity: 0.3 }}>
+            <SquaresFour size={48} color={theme.textSecondary} />
           </View>
-          <View style={styles.goalText}>
-            <ThemedText style={[styles.goalTitle, { color: theme.text, fontFamily: Fonts.rounded }]}>{goal.title}</ThemedText>
-            <ThemedText style={[styles.goalDesc, { color: theme.textSecondary }]}>{goal.description}</ThemedText>
-          </View>
-          <CaretRight size={20} color={theme.primary} weight="bold" />
-        </TouchableOpacity>
-      ))}
+          <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No goals available at the moment</ThemedText>
+        </View>
+      )}
     </View>
   );
 
   const renderTrackTab = () => (
     <View style={styles.trackContainer}>
-      <View style={[styles.perfCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+      <View style={[styles.perfCard, { backgroundColor: isDark ? theme.surfaceSecondary + '40' : theme.surfaceSecondary + '10', borderColor: GhostBorder, borderWidth: 1 }]}>
         <View style={styles.perfHeader}>
-          <ThemedText style={[styles.perfTitle, { color: theme.text, fontFamily: Fonts.rounded }]}>Overall performance</ThemedText>
+          <ThemedText style={[styles.perfTitle, { color: theme.text, fontFamily: Fonts.bold }]}>Overall performance</ThemedText>
           <Info size={18} color={theme.textSecondary} style={{ marginLeft: 8 }} />
         </View>
         <View style={styles.perfSubHeader}>
-          <ThemedText style={[styles.perfPeriod, { color: theme.textSecondary }]}>{MOCK_GROWTH_PERFORMANCE.period}</ThemedText>
-          <PremiumButton
-            variant="ghost"
-            size="small"
-            label="Change"
-            onPress={() => {}}
-            style={{ paddingVertical: 0, paddingHorizontal: 0 }}
-            textStyle={{ color: theme.primary }}
-          />
+          <ThemedText style={[styles.perfPeriod, { color: theme.textSecondary }]}>
+            Week of {formatDate(perfDate)}
+          </ThemedText>
+          <TouchableOpacity onPress={() => setIsPickerVisible(true)}>
+            <ThemedText style={{ color: theme.primary, fontWeight: '700' }}>Change</ThemedText>
+          </TouchableOpacity>
         </View>
-        <ThemedText style={[styles.perfComparison, { color: theme.textSecondary }]}>Comparison is with previous week. Trendline is of latest 5 weeks for the same time period</ThemedText>
+        <ThemedText style={[styles.perfComparison, { color: theme.textSecondary }]}>Comparison with previous week. Trendline: last 5 weeks</ThemedText>
 
         {[
           { label: 'Gross sales from offers', value: '₹0', color: theme.primary, data: [0, 2, 1, 3, 0] },
           { label: 'Orders from offers', value: '0', color: theme.primary, data: [1, 5, 2, 4, 1] },
-          { label: 'Discount given', value: '₹0', color: theme.secondary, data: [0, 1, 0.5, 2, 0] },
+          { label: 'Discount given', value: '₹0', color: '#10B981', data: [0, 1, 0.5, 2, 0] },
           { label: 'Effective discount', value: '0.0%', color: theme.primary, data: [2, 2, 2, 2, 2] },
           { label: 'Menu to order', value: '0.0%', color: theme.primary, data: [1, 2, 3, 4, 5] },
         ].map((item, idx) => (
@@ -121,7 +158,7 @@ export default function OffersScreen() {
             </View>
             <MiniLineChart color={item.color} data={item.data} />
             <View style={{ alignItems: 'flex-end', minWidth: 60 }}>
-              <ThemedText style={[styles.perfValue, { color: theme.text, fontFamily: Fonts.rounded }]}>{item.value}</ThemedText>
+              <ThemedText style={[styles.perfValue, { color: theme.text, fontFamily: Fonts.bold }]}>{item.value}</ThemedText>
               <ThemedText style={[styles.perfChange, { color: theme.textSecondary }]}>0%</ThemedText>
             </View>
           </View>
@@ -152,72 +189,84 @@ export default function OffersScreen() {
           ))}
         </View>
 
-        {MOCK_GROWTH_OFFERS.filter(o => o.status === activeFilter).map((offer, index) => (
-          <AnimatedCard key={offer.id} index={index}>
-            <View style={[styles.offerCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
-              <View style={styles.offerCardTop}>
-                <View style={styles.badgeRow}>
-                  <View style={[styles.offerBadge, { backgroundColor: theme.secondary + '15' }]}><ThemedText style={[styles.badgeText, { color: theme.secondary }]}>{offer.badge}</ThemedText></View>
-                  <View style={[styles.statusBadge, { backgroundColor: StatusColors.Ready + '15' }]}><ThemedText style={[styles.statusText, { color: StatusColors.Ready }]}>{offer.status}</ThemedText></View>
+        {MOCK_GROWTH_OFFERS.filter(o => o.status === activeFilter).length > 0 ? (
+          MOCK_GROWTH_OFFERS.filter(o => o.status === activeFilter).map((offer, index) => (
+            <AnimatedCard key={offer.id} index={index}>
+              <View style={[styles.offerCard, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]}>
+                <View style={styles.offerCardTop}>
+                  <View style={styles.badgeRow}>
+                    <View style={[styles.offerBadge, { backgroundColor: Gold + '15' }]}><ThemedText style={[styles.badgeText, { color: Gold }]}>{offer.badge}</ThemedText></View>
+                    <View style={[styles.statusBadge, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}><ThemedText style={[styles.statusText, { color: '#10B981' }]}>{offer.status}</ThemedText></View>
+                  </View>
+                  <ThemedText style={[styles.offerTitle, { color: theme.text, fontFamily: Fonts.bold }]}>{offer.title}</ThemedText>
+                  <ThemedText style={[styles.startDate, { color: theme.textSecondary }]}>Start Date: {offer.startDate}</ThemedText>
                 </View>
-                <ThemedText style={[styles.offerTitle, { color: theme.text, fontFamily: Fonts.rounded }]}>{offer.title}</ThemedText>
-                <ThemedText style={[styles.startDate, { color: theme.textSecondary }]}>Start Date: {offer.startDate}</ThemedText>
-              </View>
-              <View style={[styles.offerCardStats, { backgroundColor: theme.surfaceSecondary }]}>
-                <View style={styles.statsGrid}>
-                  <View style={styles.statItem}>
-                    <ThemedText style={[styles.statValue, { color: theme.primary, fontFamily: Fonts.rounded }]}>₹{offer.grossSales}</ThemedText>
-                    <ThemedText style={styles.statLabel}>Gross sales</ThemedText>
+                <View style={[styles.offerCardStats, { backgroundColor: isDark ? theme.surfaceSecondary + '10' : theme.surfaceSecondary + '10' }]}>
+                  <View style={styles.statsGrid}>
+                    <View style={styles.statItem}>
+                      <ThemedText style={[styles.statValue, { color: theme.primary, fontFamily: Fonts.bold }]}>₹{offer.grossSales}</ThemedText>
+                      <ThemedText style={styles.statLabel}>Gross sales</ThemedText>
+                    </View>
+                    <View style={styles.statItem}>
+                      <ThemedText style={[styles.statValue, { color: theme.text, fontFamily: Fonts.bold }]}>{offer.ordersDelivered}</ThemedText>
+                      <ThemedText style={styles.statLabel}>Orders delivered</ThemedText>
+                    </View>
                   </View>
-                  <View style={styles.statItem}>
-                    <ThemedText style={[styles.statValue, { color: theme.text, fontFamily: Fonts.rounded }]}>{offer.ordersDelivered}</ThemedText>
-                    <ThemedText style={styles.statLabel}>Orders delivered</ThemedText>
+                  <View style={styles.statsGrid}>
+                    <View style={styles.statItem}>
+                      <ThemedText style={[styles.statValue, { color: '#10B981', fontFamily: Fonts.bold }]}>₹{offer.discountGiven}</ThemedText>
+                      <ThemedText style={styles.statLabel}>Discount given</ThemedText>
+                    </View>
+                    <View style={styles.statItem}>
+                      <ThemedText style={[styles.statValue, { color: theme.text, fontFamily: Fonts.bold }]}>{offer.effectiveDiscount}%</ThemedText>
+                      <ThemedText style={styles.statLabel}>Effective discount %</ThemedText>
+                    </View>
                   </View>
-                </View>
-                <View style={styles.statsGrid}>
-                  <View style={styles.statItem}>
-                    <ThemedText style={[styles.statValue, { color: theme.secondary, fontFamily: Fonts.rounded }]}>₹{offer.discountGiven}</ThemedText>
-                    <ThemedText style={styles.statLabel}>Discount given</ThemedText>
-                  </View>
-                  <View style={styles.statItem}>
-                    <ThemedText style={[styles.statValue, { color: theme.text, fontFamily: Fonts.rounded }]}>{offer.effectiveDiscount}%</ThemedText>
-                    <ThemedText style={styles.statLabel}>Effective discount %</ThemedText>
-                  </View>
-                </View>
 
-                <View style={[styles.line, { marginVertical: 16, opacity: 0.1, backgroundColor: theme.text }]} />
-                <ThemedText style={[styles.updatedAt, { color: theme.textSecondary }]}>Performance updated till yesterday</ThemedText>
-                <View style={{ gap: 8, marginTop: 12 }}>
-                  {offer.details.map((d, i) => (
-                    <ThemedText key={i} style={[styles.detailItem, { color: theme.text }]}>{d}</ThemedText>
-                  ))}
+                  <View style={[styles.line, { marginVertical: 16, backgroundColor: GhostBorder }]} />
+                  <ThemedText style={[styles.updatedAt, { color: theme.textSecondary }]}>Performance updated till yesterday</ThemedText>
+                  <View style={{ gap: 8, marginTop: 12 }}>
+                    {offer.details.map((d, i) => (
+                      <ThemedText key={i} style={[styles.detailItem, { color: theme.text }]}>{d}</ThemedText>
+                    ))}
+                  </View>
                 </View>
               </View>
+            </AnimatedCard>
+          ))
+        ) : (
+          <View style={styles.emptyState}>
+            <View style={{ opacity: 0.3 }}>
+              <SquaresFour size={48} color={theme.textSecondary} />
             </View>
-          </AnimatedCard>
-        ))}
+            <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No {activeFilter.toLowerCase()} offers found</ThemedText>
+          </View>
+        )}
       </View>
     </View>
   );
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <CaretLeft size={24} color={theme.text} weight="bold" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.headerTitleArea}>
-          <View style={styles.headerTopRow}>
-            <ThemedText style={[styles.restaurantName, { color: theme.text, fontFamily: Fonts.rounded }]}>Muggs Cafe</ThemedText>
-            <ThemedText style={{ fontSize: 12, color: theme.primary }}>▼</ThemedText>
-          </View>
-          <ThemedText style={[styles.locationText, { color: theme.textSecondary }]}>Balotra Locality, Balotra</ThemedText>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.headerSettings, { backgroundColor: theme.surfaceSecondary, borderRadius: 12, padding: 8 }]}>
-          <SquaresFour size={24} color={theme.text} weight="bold" />
-        </TouchableOpacity>
-      </View>
+      <RestaurantHeader
+        restaurantName={currentRestaurant.name}
+        locality={currentRestaurant.locality}
+        isOnline={isOnline}
+        onToggleStatus={() => setIsOnline(!isOnline)}
+        onPressInfo={() => setIsSwitcherVisible(true)}
+        onBack={() => router.back()}
+      />
 
+      <RestaurantSwitcher
+        visible={isSwitcherVisible}
+        onClose={() => setIsSwitcherVisible(false)}
+        restaurants={OWNED_RESTAURANTS}
+        selectedId={currentRestaurant.id}
+        onSelect={(res: any) => {
+          setCurrentRestaurant(res);
+          setIsSwitcherVisible(false);
+        }}
+      />
       <View style={styles.tabsWrapper}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'create' && { borderBottomColor: theme.primary, borderBottomWidth: 3 }]}
@@ -233,9 +282,21 @@ export default function OffersScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {activeTab === 'create' ? renderCreateTab() : renderTrackTab()}
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: queue.length > 0 ? 240 : 120 }]} showsVerticalScrollIndicator={false}>
+       {activeTab === 'create' ? renderCreateTab() : renderTrackTab()}
       </ScrollView>
+
+      <DateTimePicker
+        visible={isPickerVisible}
+        mode="date"
+        initialDate={perfDate}
+        onClose={() => setIsPickerVisible(false)}
+        onConfirm={(date) => {
+          setPerfDate(date);
+          setIsPickerVisible(false);
+        }}
+        title="Selecting performance period"
+      />
     </View>
   );
 }
@@ -272,8 +333,6 @@ const styles = StyleSheet.create({
   },
   tabsWrapper: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   tab: {
     flex: 1,
@@ -285,8 +344,24 @@ const styles = StyleSheet.create({
     fontSize: 18,
     opacity: 0.6,
   },
+
   scrollContent: {
     paddingBottom: 120,
+  },
+  emptyState: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    marginTop: 20,
+  },
+  emptyText: {
+    ...Typography.BodyRegular,
+    opacity: 0.5,
+    textAlign: 'center',
   },
   createContainer: {
     padding: 16,

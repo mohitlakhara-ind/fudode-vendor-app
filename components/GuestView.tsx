@@ -27,7 +27,7 @@ export const GuestView = ({ title, description, icon: Icon }: GuestViewProps) =>
       
       <View style={styles.content}>
         <View style={[styles.iconContainer, { backgroundColor: theme.primary + '15' }]}>
-          <Icon size={80} color={theme.primary} weight="duotone" />
+          <Icon size={80} color={theme.primary} weight="bold" />
         </View>
         
         <Text style={[styles.title, { color: theme.text }]}>{title}</Text>

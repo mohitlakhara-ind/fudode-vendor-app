@@ -1,9 +1,15 @@
-import { Colors, Fonts, Typography, StatusColors } from '@/constants/theme';
+import { Colors, Fonts, StatusColors, Typography } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { CaretDown } from 'phosphor-react-native';
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { CaretDown, CaretLeft } from 'phosphor-react-native';
+import Animated, { 
+  useAnimatedStyle, 
+  withSpring, 
+  useSharedValue, 
+  interpolateColor 
+} from 'react-native-reanimated';
+import React, { useEffect } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface RestaurantHeaderProps {
   restaurantName: string;
@@ -12,6 +18,9 @@ interface RestaurantHeaderProps {
   onToggleStatus: () => void;
   onPressMenu?: () => void;
   onPressInfo: () => void;
+  onBack?: () => void;
+  title?: string;
+  onTitlePress?: () => void;
 }
 
 export const RestaurantHeader = ({
@@ -21,17 +30,70 @@ export const RestaurantHeader = ({
   onToggleStatus,
   onPressMenu,
   onPressInfo,
+  onBack,
+  title,
+  onTitlePress,
 }: RestaurantHeaderProps) => {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
   const isDark = colorScheme === 'dark';
   const router = useRouter();
 
+  const progress = useSharedValue(isOnline ? 1 : 0);
+
+  useEffect(() => {
+    progress.value = withSpring(isOnline ? 1 : 0, {
+      damping: 15,
+      stiffness: 150,
+      mass: 0.5
+    });
+  }, [isOnline]);
+
+  const animatedThumbStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: progress.value * 18 }],
+  }));
+
+  const animatedOuterStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [StatusColors.Late, StatusColors.Ready]
+    ),
+    borderColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [StatusColors.Late, StatusColors.Ready]
+    ),
+  }));
+
+  const animatedContainerStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [StatusColors.Late + '15', theme.primary + '15']
+    ),
+  }));
+
+  const animatedStatusDotStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [StatusColors.Late, StatusColors.Ready]
+    ),
+  }));
+
+  const animatedStatusTextStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(
+      progress.value,
+      [0, 1],
+      [StatusColors.Late, StatusColors.Ready]
+    ),
+  }));
+
   const handleToggle = () => {
     if (isOnline) {
       router.push('/restaurant-status');
     } else {
-      // If offline, just go online (or show confirmation)
       onToggleStatus();
     }
   };
@@ -39,41 +101,48 @@ export const RestaurantHeader = ({
   return (
     <View style={styles.header}>
       <View style={[styles.headerMain]}>
+        {onBack && (
+          <Pressable onPress={onBack} style={styles.backButton}>
+            <CaretLeft size={24} color={theme.text} weight="bold" />
+          </Pressable>
+        )}
         <Pressable
-          onPress={onPressInfo}
+          onPress={() => {
+            onPressInfo();
+            onTitlePress?.();
+          }}
           style={styles.restaurantInfo}
         >
           <View style={styles.restaurantNameRow}>
-            <Text style={[styles.restaurantName, { color: theme.text, fontFamily: Fonts.rounded }]} numberOfLines={1}>
-              {restaurantName}
-            </Text>
-            <CaretDown size={14} color={theme.textSecondary} weight="bold" />
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={[styles.restaurantName, { color: theme.text, fontFamily: Fonts.rounded }]}>
+                {title || restaurantName}
+              </Text>
+              {!title && <CaretDown size={14} color={theme.textSecondary} weight="bold" />}
+            </View>
           </View>
-          <Text style={[styles.locality, { color: theme.textSecondary }]} numberOfLines={1}>
-            {locality}
-          </Text>
-        </Pressable>
+          {!title && (
+            <Text style={[styles.locality, { color: theme.textSecondary }]}>
+              {locality}
+            </Text>
+          )}
+       </Pressable>
       </View>
 
       <View style={styles.headerActions}>
-        <View style={[styles.statusContainer, { backgroundColor: isOnline ? theme.primary + '15' : StatusColors.Late + '15', borderColor: theme.border }]}>
-          <View style={[styles.statusDot, { backgroundColor: isOnline ? StatusColors.Ready : StatusColors.Late }]} />
-          <Text style={[styles.statusText, { color: isOnline ? StatusColors.Ready : StatusColors.Late }]}>
+        <Animated.View style={[styles.statusContainer, { borderColor: theme.border }, animatedContainerStyle]}>
+          <Animated.View style={[styles.statusDot, animatedStatusDotStyle]} />
+          <Animated.Text style={[styles.statusText, animatedStatusTextStyle]}>
             {isOnline ? 'Online' : 'Offline'}
-          </Text>
+          </Animated.Text>
           <Pressable
             onPress={handleToggle}
-            style={[
-              styles.toggleOuter,
-              {
-                backgroundColor: isOnline ? StatusColors.Ready : StatusColors.Late,
-                borderColor: isOnline ? StatusColors.Ready : StatusColors.Late
-              }
-            ]}
           >
-            <View style={[styles.toggleInner, { transform: [{ translateX: isOnline ? 18 : 0 }], backgroundColor: '#fff' }]} />
+            <Animated.View style={[styles.toggleOuter, animatedOuterStyle]}>
+              <Animated.View style={[styles.toggleInner, animatedThumbStyle, { backgroundColor: theme.surface }]} />
+            </Animated.View>
           </Pressable>
-        </View>
+        </Animated.View>
       </View>
     </View>
   );
@@ -94,6 +163,10 @@ const styles = StyleSheet.create({
   },
   restaurantInfo: {
     flex: 1,
+  },
+  backButton: {
+    paddingRight: 12,
+    justifyContent: 'center',
   },
   restaurantNameRow: {
     flexDirection: 'row',

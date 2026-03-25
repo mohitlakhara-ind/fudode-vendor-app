@@ -72,7 +72,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
   };
 
   return (
-    <View style={[styles.mainWrapper, { backgroundColor: glassyBg, borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+    <View style={[styles.mainWrapper, { backgroundColor: glassyBg, borderTopColor: theme.border }]}>
       <GlassView
         intensity={50}
         tint={isDark ? 'dark' : 'light'}
@@ -97,9 +97,9 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
             <Ionicons
               name={isManageMode ? "flash-outline" : "grid-outline"}
               size={24}
-              color={theme.surface} // Dynamic color for icon
+              color={theme.background} // Dynamic color for icon
             />
-            <Text style={[styles.modeText, { color: theme.surface }]}>
+            <Text style={[styles.modeText, { color: theme.background }]}>
               {isManageMode ? 'TO LIVE' : 'TO HUB'}
             </Text>
           </Pressable>
@@ -130,6 +130,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
+    zIndex: 100,
   },
   container: {
     flexDirection: 'row',

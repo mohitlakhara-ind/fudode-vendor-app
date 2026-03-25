@@ -13,7 +13,7 @@ interface SeparatorProps {
 export const Separator = ({ 
   style, 
   marginVertical = 16,
-  opacity = 0.2 
+  opacity = 1 
 }: SeparatorProps) => {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];

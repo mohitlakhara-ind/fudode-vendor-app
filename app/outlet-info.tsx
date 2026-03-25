@@ -29,32 +29,35 @@ import {
   X,
 } from 'phosphor-react-native';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { Colors, Typography } from '@/constants/theme';
+import { Colors, Fonts, Typography } from '@/constants/theme';
 import { ModalWrapper } from '@/components/ui/ModalWrapper';
 import { RadioButton } from '@/components/ui/RadioButton';
+import { ThemedText } from '@/components/themed-text';
+import { EditOutletSheet } from '@/components/outlet/EditOutletSheet';
+import { PremiumButton } from '@/components/ui/PremiumButton';
 
 const SECTION_SPACING = 24;
 
 const InfoCard = ({ label, value, icon: Icon, onEdit, isAddress }: any) => {
-  const { colorScheme } = useAppTheme();
+  const { colorScheme, isDark } = useAppTheme();
   const theme = Colors[colorScheme];
 
   return (
-    <View style={[styles.card, { borderColor: theme.border + '15', backgroundColor: theme.surface }]}>
-      <Text style={[styles.cardLabel, { color: theme.textSecondary }]}>{label}</Text>
+    <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary + '10' }]}>
+      <ThemedText style={[styles.cardLabel, { color: theme.textSecondary }]}>{label}</ThemedText>
       <View style={styles.cardContent}>
         <View style={styles.cardValueRow}>
-          {Icon && <Icon size={20} color={isAddress ? '#EA4335' : theme.textSecondary} weight={isAddress ? "fill" : "regular"} style={{ marginTop: 2 }} />}
+          {Icon && <Icon size={20} color={isAddress ? theme.primary : theme.textSecondary} weight={isAddress ? "fill" : "regular"} style={{ marginTop: 2 }} />}
           <View style={{ flex: 1 }}>
-            <Text style={[styles.cardValue, { color: theme.text }]}>{value}</Text>
+            <ThemedText style={[styles.cardValue, { color: theme.text }]}>{value}</ThemedText>
             {isAddress && (
               <Pressable>
-                <Text style={[styles.subLink, { color: theme.info }]}>View on map</Text>
+                <ThemedText style={[styles.subLink, { color: theme.primary }]}>View on map</ThemedText>
               </Pressable>
             )}
           </View>
           <Pressable onPress={onEdit}>
-            <Text style={[styles.editLink, { color: theme.info }]}>edit</Text>
+            <ThemedText style={[styles.editLink, { color: theme.primary }]}>edit</ThemedText>
           </Pressable>
         </View>
       </View>
@@ -65,11 +68,15 @@ const InfoCard = ({ label, value, icon: Icon, onEdit, isAddress }: any) => {
 export default function OutletInfoScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colorScheme } = useAppTheme();
+  const { colorScheme, isDark } = useAppTheme();
   const theme = Colors[colorScheme];
 
   const [replaceModalVisible, setReplaceModalVisible] = useState(false);
+  const [editSheetVisible, setEditSheetVisible] = useState(false);
   const [selectedOutlet, setSelectedOutlet] = useState('muggs');
+  const [outletName, setOutletName] = useState('Muggs Cafe');
+  const [cuisineTags, setCuisineTags] = useState('Cafe, Pizza, Sandwich, Fast Food, Chinese, Beverages, Desserts, Coffee');
+  const [outletAddress, setOutletAddress] = useState('Near New Bus Stand, Balotra Locality, Balotra, Rajasthan 344022');
 
   const onShare = async () => {
     try {
@@ -84,17 +91,20 @@ export default function OutletInfoScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 10, borderBottomColor: theme.border }]}>
         <View style={styles.headerLeft}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
             <CaretLeft size={28} color={theme.text} weight="bold" />
           </Pressable>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>Outlet info</Text>
+          <ThemedText style={[styles.headerTitle, { color: theme.text, fontFamily: Fonts.rounded }]}>Outlet info</ThemedText>
         </View>
         <View style={styles.headerRight}>
-          <Text style={[styles.resId, { color: theme.textSecondary }]}>Res id: 20202954</Text>
-          <Pressable onPress={onShare} style={styles.shareBtn}>
-            <ShareNetwork size={24} color={theme.text} weight="bold" />
+          <ThemedText style={[styles.resId, { color: theme.textSecondary }]}>Res id: 20202954</ThemedText>
+          <Pressable 
+            onPress={onShare} 
+            style={[styles.shareBtn, { backgroundColor: theme.surfaceSecondary + '50' }]}
+          >
+            <ShareNetwork size={22} color={theme.text} weight="bold" />
           </Pressable>
         </View>
       </View>
@@ -105,79 +115,80 @@ export default function OutletInfoScreen() {
       >
         {/* Banner Section */}
         <View style={styles.bannerWrapper}>
-          <Image 
-            source={{ uri: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800' }}
+           <Image 
+            source={{ uri: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=1200' }}
             style={styles.bannerImage}
             resizeMode="cover"
           />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.15)' }]} />
           <Pressable 
             onPress={() => setReplaceModalVisible(true)}
-            style={[styles.replaceBtn, { backgroundColor: 'rgba(0,0,0,0.6)' }]}
+            style={[styles.replaceBtn, { backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.5)', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.2)', borderWidth: 1 }]}
           >
             <PencilSimple size={16} color="#FFF" weight="bold" />
-            <Text style={styles.replaceText}>Replace image</Text>
+            <Text style={[styles.replaceText, { color: '#FFF' }]}>Replace image</Text>
           </Pressable>
 
-          <Pressable style={[styles.cameraIconOverlay, { backgroundColor: theme.surfaceSecondary }]}>
-            <Camera size={24} color={theme.text} />
+          <Pressable style={[styles.cameraIconOverlay, { backgroundColor: theme.surfaceSecondary, borderColor: theme.border, shadowColor: isDark ? '#000' : theme.textSecondary }]}>
+            <Camera size={24} color={theme.text} weight="bold" />
           </Pressable>
         </View>
 
         <View style={styles.contentPadding}>
           <Pressable style={styles.addPhotoLink}>
-            <Text style={[styles.addPhotoText, { color: theme.info }]}>Add photo</Text>
+            <ThemedText style={[styles.addPhotoText, { color: theme.primary }]}>Add photo</ThemedText>
           </Pressable>
-
+ 
           {/* Ratings */}
           <View style={styles.ratingsRow}>
-            <View style={[styles.ratingBadge, { backgroundColor: '#267E3E' }]}>
-              <Text style={styles.ratingText}>3.7 ★</Text>
+            <View style={[styles.ratingBadge, { backgroundColor: theme.success }]}>
+              <ThemedText style={styles.ratingText}>3.7 ★</ThemedText>
             </View>
-            <Text style={[styles.ratingLabel, { color: theme.text }]}>245 DELIVERY REVIEWS</Text>
+            <ThemedText style={[styles.ratingLabel, { color: theme.text }]}>245 DELIVERY REVIEWS</ThemedText>
             <CaretRight size={14} color={theme.text} weight="bold" />
           </View>
-
+ 
           <View style={styles.ratingsRow}>
-            <View style={[styles.ratingBadge, { backgroundColor: '#267E3E' }]}>
-              <Text style={styles.ratingText}>3.3 ★</Text>
+            <View style={[styles.ratingBadge, { backgroundColor: theme.success }]}>
+              <ThemedText style={styles.ratingText}>3.3 ★</ThemedText>
             </View>
-            <Text style={[styles.ratingLabel, { color: theme.text }]}>4 DINING REVIEWS</Text>
+            <ThemedText style={[styles.ratingLabel, { color: theme.text }]}>4 DINING REVIEWS</ThemedText>
             <CaretRight size={14} color={theme.text} weight="bold" />
           </View>
-
-          <View style={[styles.sectionDivider, { backgroundColor: theme.border + '15' }]} />
+ 
+          <View style={[styles.sectionDivider, { backgroundColor: theme.border }]} />
           
-          <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>Restaurant information</Text>
-
+          <ThemedText style={[styles.sectionHeader, { color: theme.textSecondary }]}>Restaurant information</ThemedText>
+ 
           {/* Info Cards */}
           <InfoCard 
             label="Restaurant's name"
-            value="Muggs Cafe"
-            onEdit={() => {}}
+            value={outletName}
+            onEdit={() => setEditSheetVisible(true)}
           />
-
+ 
           <InfoCard 
             label="Cuisine tags"
-            value="Cafe, Pizza, Sandwich, Fast Food, Chinese, Beverages, Desserts, Coffee"
-            onEdit={() => {}}
+            value={cuisineTags}
+            onEdit={() => setEditSheetVisible(true)}
           />
-
+ 
           <InfoCard 
             label="Address"
-            value="Nayapura Balotra, Teh Pachpadra, Balotra Locality, Bal..."
+            value={outletAddress}
             icon={MapPin}
             isAddress
-            onEdit={() => {}}
+            onEdit={() => setEditSheetVisible(true)}
           />
-
-          <View style={[styles.card, { borderColor: theme.border + '15', backgroundColor: theme.surface }]}>
-            <Text style={[styles.cardLabel, { color: theme.textSecondary }]}>Pickup instructions</Text>
-            <Text style={[styles.cardValue, { color: theme.text, fontSize: 15, marginTop: 4 }]}>
+ 
+          <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary + '10' }]}>
+            <ThemedText style={[styles.cardLabel, { color: theme.textSecondary }]}>Pickup instructions</ThemedText>
+            <ThemedText style={[styles.cardValue, { color: theme.text, fontSize: 15, marginTop: 4 }]}>
               Helps our delivery partner reach your outlet faster
-            </Text>
+            </ThemedText>
             <Pressable style={styles.recordRow}>
-              <Microphone size={18} color={theme.info} weight="fill" />
-              <Text style={[styles.recordLink, { color: theme.info }]}>Tap here to record instructions</Text>
+              <Microphone size={18} color={theme.primary} weight="fill" />
+              <ThemedText style={[styles.recordLink, { color: theme.primary }]}>Tap here to record instructions</ThemedText>
             </Pressable>
           </View>
 
@@ -185,32 +196,32 @@ export default function OutletInfoScreen() {
           <View style={styles.bottomLinks}>
             <Pressable 
               onPress={() => router.push('/outlet-timings')}
-              style={[styles.navLink, { borderBottomColor: theme.border + '10' }]}
+              style={[styles.navLink, { borderBottomColor: theme.border }]}
             >
               <View style={styles.navLinkLeft}>
-                <Clock size={22} color={theme.info} weight="regular" />
-                <Text style={[styles.navLinkLabel, { color: theme.text }]}>Outlet timings</Text>
+                <Clock size={22} color={theme.primary} weight="regular" />
+                <ThemedText style={[styles.navLinkLabel, { color: theme.text }]}>Outlet timings</ThemedText>
               </View>
               <CaretRight size={18} color={theme.textSecondary} />
             </Pressable>
-
+ 
             <Pressable 
               onPress={() => router.push('/contact-details')}
-              style={[styles.navLink, { borderBottomColor: theme.border + '10' }]}
+              style={[styles.navLink, { borderBottomColor: theme.border }]}
             >
               <View style={styles.navLinkLeft}>
-                <Phone size={22} color={theme.info} weight="regular" />
-                <Text style={[styles.navLinkLabel, { color: theme.text }]}>Contact details</Text>
+                <Phone size={22} color={theme.primary} weight="regular" />
+                <ThemedText style={[styles.navLinkLabel, { color: theme.text }]}>Contact details</ThemedText>
               </View>
               <CaretRight size={18} color={theme.textSecondary} />
             </Pressable>
-
+ 
             <Pressable style={styles.navLink}>
               <View style={styles.navLinkLeft}>
-                <Storefront size={22} color={theme.info} weight="regular" />
-                <Text style={[styles.navLinkLabel, { color: theme.text }]}>View on Fudode</Text>
+                <Storefront size={22} color={theme.primary} weight="regular" />
+                <ThemedText style={[styles.navLinkLabel, { color: theme.text }]}>View on Fudode</ThemedText>
               </View>
-              <ArrowSquareOut size={18} color={theme.info} />
+              <ArrowSquareOut size={18} color={theme.primary} />
             </Pressable>
           </View>
         </View>
@@ -222,16 +233,16 @@ export default function OutletInfoScreen() {
         onClose={() => setReplaceModalVisible(false)}
         title="Open profile picture for"
         footer={
-          <Pressable 
+          <PremiumButton
+            label="Proceed"
             onPress={() => setReplaceModalVisible(false)}
-            style={[styles.proceedBtn, { backgroundColor: theme.text }]}
-          >
-            <Text style={[styles.proceedText, { color: theme.background }]}>Proceed</Text>
-          </Pressable>
+            variant="primary"
+            style={styles.proceedBtn}
+          />
         }
       >
         <View style={styles.modalContent}>
-          <View style={[styles.searchContainer, { backgroundColor: theme.surfaceSecondary }]}>
+          <View style={[styles.searchContainer, { backgroundColor: theme.surfaceSecondary + '30', borderColor: theme.border, borderWidth: 1 }]}>
             <MagnifyingGlass size={20} color={theme.textSecondary} />
             <TextInput 
               placeholder="Search outlet name or ID"
@@ -245,18 +256,31 @@ export default function OutletInfoScreen() {
             style={styles.outletItem}
           >
             <View>
-              <Text style={[styles.outletName, { color: theme.text }]}>Muggs Cafe</Text>
-              <Text style={[styles.outletSub, { color: theme.textSecondary }]}>Balotra Locality, Balotra</Text>
-              <Text style={[styles.outletSub, { color: theme.textSecondary }]}>ID: 20202954</Text>
+              <ThemedText style={[styles.outletName, { color: theme.text }]}>Muggs Cafe</ThemedText>
+              <ThemedText style={[styles.outletSub, { color: theme.textSecondary }]}>Balotra Locality, Balotra</ThemedText>
+              <ThemedText style={[styles.outletSub, { color: theme.textSecondary }]}>ID: 20202954</ThemedText>
             </View>
             <RadioButton 
               selected={selectedOutlet === 'muggs'} 
               onPress={() => setSelectedOutlet('muggs')} 
-              activeColor={theme.info}
+              activeColor={theme.primary}
             />
           </Pressable>
         </View>
       </ModalWrapper>
+
+      <EditOutletSheet
+        visible={editSheetVisible}
+        onClose={() => setEditSheetVisible(false)}
+        initialName={outletName}
+        initialCuisines={cuisineTags}
+        initialAddress={outletAddress}
+        onSave={(name, cuisines, address) => {
+          setOutletName(name);
+          setCuisineTags(cuisines);
+          setOutletAddress(address);
+        }}
+      />
     </View>
   );
 }
@@ -270,7 +294,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -282,7 +307,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...Typography.H1,
-    fontSize: 22,
+    fontSize: 24,
   },
   headerRight: {
     flexDirection: 'row',
@@ -292,10 +317,11 @@ const styles = StyleSheet.create({
   resId: {
     ...Typography.Caption,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   shareBtn: {
-    padding: 4,
+    padding: 10,
+    borderRadius: 12,
   },
   bannerWrapper: {
     width: '100%',
@@ -312,15 +338,15 @@ const styles = StyleSheet.create({
     right: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    gap: 8,
   },
   replaceText: {
     color: '#FFF',
     ...Typography.Caption,
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: 13,
   },
   cameraIconOverlay: {
@@ -329,76 +355,77 @@ const styles = StyleSheet.create({
     left: 20,
     width: 60,
     height: 60,
-    borderRadius: 12,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    elevation: 5,
+    borderWidth: 1.5,
+    elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
   },
   contentPadding: {
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 16,
   },
   addPhotoLink: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   addPhotoText: {
     ...Typography.H3,
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
   },
   ratingsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    gap: 8,
+    marginBottom: 16,
+    gap: 12,
   },
   ratingBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    minWidth: 40,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    minWidth: 44,
     alignItems: 'center',
   },
   ratingText: {
     color: '#FFF',
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   ratingLabel: {
     ...Typography.Caption,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
     flex: 1,
+    fontSize: 11,
   },
   sectionDivider: {
     height: 1,
     width: '100%',
-    marginVertical: 24,
+    marginVertical: 28,
   },
   sectionHeader: {
     ...Typography.Caption,
-    fontWeight: '800',
-    letterSpacing: 1.2,
+    fontWeight: '900',
+    letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginBottom: 20,
+    fontSize: 12,
   },
   card: {
-    borderRadius: 12,
+    borderRadius: 24,
     borderWidth: 1,
-    padding: 16,
+    padding: 20,
     marginBottom: 16,
   },
   cardLabel: {
     ...Typography.Caption,
     fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 6,
+    fontWeight: '800',
+    marginBottom: 8,
   },
   cardContent: {
     marginTop: 2,
@@ -410,40 +437,42 @@ const styles = StyleSheet.create({
   },
   cardValue: {
     ...Typography.H3,
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '800',
     lineHeight: 22,
   },
   subLink: {
     ...Typography.Caption,
-    marginTop: 4,
-    fontWeight: '700',
+    marginTop: 6,
+    fontWeight: '800',
+    fontSize: 13,
   },
   editLink: {
     ...Typography.Caption,
-    fontWeight: '700',
-    paddingLeft: 8,
+    fontWeight: '800',
+    paddingLeft: 12,
+    fontSize: 13,
   },
   recordRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 16,
-    gap: 8,
+    gap: 10,
   },
   recordLink: {
     ...Typography.H3,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   bottomLinks: {
-    marginTop: 12,
-    gap: 4,
+    marginTop: 16,
+    gap: 0,
   },
   navLink: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 18,
+    paddingVertical: 22,
     borderBottomWidth: 1,
   },
   navLinkLeft: {
@@ -454,7 +483,7 @@ const styles = StyleSheet.create({
   navLinkLabel: {
     ...Typography.H2,
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   modalContent: {
     paddingTop: 8,
@@ -462,35 +491,37 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    height: 50,
-    borderRadius: 10,
+    paddingHorizontal: 16,
+    height: 52,
+    borderRadius: 16,
     marginBottom: 24,
   },
   searchInput: {
     flex: 1,
     paddingHorizontal: 12,
     ...Typography.BodyRegular,
+    fontWeight: '600',
   },
   outletItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 20,
+    paddingBottom: 24,
   },
   outletName: {
     ...Typography.H2,
     fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 2,
+    fontWeight: '900',
+    marginBottom: 4,
   },
   outletSub: {
     ...Typography.Caption,
     fontSize: 14,
+    fontWeight: '600',
   },
   proceedBtn: {
-    height: 56,
-    borderRadius: 14,
+    height: 60,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
@@ -498,6 +529,6 @@ const styles = StyleSheet.create({
   proceedText: {
     ...Typography.H2,
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '900',
   },
 });

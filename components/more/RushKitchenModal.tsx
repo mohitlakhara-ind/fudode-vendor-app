@@ -20,7 +20,7 @@ const TIME_OPTIONS = [
 ];
 
 export const RushKitchenModal = ({ visible, onClose, onConfirm }: RushKitchenModalProps) => {
-  const { colorScheme } = useAppTheme();
+  const { colorScheme, isDark } = useAppTheme();
   const theme = Colors[colorScheme];
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
@@ -40,12 +40,12 @@ export const RushKitchenModal = ({ visible, onClose, onConfirm }: RushKitchenMod
         <Pressable 
           style={[
             styles.confirmButton, 
-            { backgroundColor: selectedId ? theme.primary : 'rgba(255,255,255,0.05)' }
+            { backgroundColor: selectedId ? theme.primary : theme.surfaceSecondary + '20' }
           ]}
           disabled={!selectedId}
           onPress={handleConfirm}
         >
-          <Text style={[styles.confirmText, { color: selectedId ? '#000' : 'rgba(255,255,255,0.3)' }]}>
+          <Text style={[styles.confirmText, { color: selectedId ? (isDark ? '#000' : '#FFF') : theme.textSecondary }]}>
             Confirm Changes
           </Text>
         </Pressable>

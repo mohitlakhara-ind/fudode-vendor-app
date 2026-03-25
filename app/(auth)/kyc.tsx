@@ -28,7 +28,7 @@ const FormInput = ({ label, value, onChangeText, placeholder, keyboardType = 'de
   return (
     <View style={styles.inputContainer}>
       <Text style={[styles.label, { color: theme.icon }]}>{label}</Text>
-      <View style={[styles.inputWrapper, { backgroundColor: theme.surface, borderColor: error ? '#FF3B30' : theme.border }]}>
+      <View style={[styles.inputWrapper, { backgroundColor: theme.surface, borderColor: error ? theme.error : theme.border }]}>
         <TextInput
           style={[styles.input, { color: theme.text }]}
           value={value}
@@ -39,7 +39,7 @@ const FormInput = ({ label, value, onChangeText, placeholder, keyboardType = 'de
           maxLength={maxLength}
         />
       </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>}
     </View>
   );
 };
@@ -64,8 +64,8 @@ const SelectOption = ({ label, options, selectedValue, onSelect }: any) => {
                 styles.optionButton,
                 { 
                   backgroundColor: isActive 
-                    ? `${theme.primary}15` 
-                    : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'),
+                    ? theme.primary + '15' 
+                    : theme.surfaceSecondary,
                   borderColor: isActive ? theme.primary : theme.border,
                   borderWidth: isActive ? 2 : 1.5,
                 }
@@ -178,7 +178,7 @@ export default function KycScreen() {
             styles.backButton, 
             { 
               borderColor: theme.border,
-              backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'
+              backgroundColor: theme.surfaceSecondary
             }
           ]} 
           onPress={() => router.back()}
@@ -189,7 +189,7 @@ export default function KycScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.infoBox}>
+        <View style={[styles.infoBox, { backgroundColor: theme.surfaceSecondary }]}>
           <WarningCircle size={20} color={theme.primary} />
           <Text style={[styles.infoText, { color: theme.text }]}>
             Submit your restaurant legal and payout details to get started.
@@ -309,9 +309,9 @@ export default function KycScreen() {
         </View>
 
         {error && (
-          <View style={styles.errorBox}>
-            <WarningCircle size={16} color="#FF3B30" />
-            <Text style={styles.errorBoxText}>{error as string}</Text>
+          <View style={[styles.errorBox, { backgroundColor: theme.error + '10' }]}>
+            <WarningCircle size={16} color={theme.error} />
+            <Text style={[styles.errorBoxText, { color: theme.error }]}>{error as string}</Text>
           </View>
         )}
 
@@ -360,7 +360,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 102, 0, 0.05)',
     marginBottom: 24,
     gap: 12,
   },
@@ -416,7 +415,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
-    color: '#FF3B30',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 6,
@@ -427,12 +425,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     borderRadius: 8,
-    backgroundColor: 'rgba(255, 59, 48, 0.05)',
     marginBottom: 20,
     gap: 8,
   },
   errorBoxText: {
-    color: '#FF3B30',
     fontSize: 13,
     fontWeight: '600',
   },

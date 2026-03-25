@@ -22,6 +22,12 @@ const ISSUE_TYPES = [
   { id: 'other', label: 'Other technical issue' },
 ];
 
+const LANGUAGES = [
+  { id: 'en', label: 'English - EN' },
+  { id: 'hi', label: 'हिंदी - HI' },
+  { id: 'kn', label: 'ಕನ್ನಡ - Kannada' },
+];
+
 export const TechnicalIssueSheet = ({ visible, onClose, onFinish }: any) => {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
@@ -122,6 +128,46 @@ export const FeedbackSheet = ({ visible, onClose, onFinish }: any) => {
           value={feedback}
           onChangeText={setFeedback}
         />
+      </View>
+    </ModalWrapper>
+  );
+};
+
+// --- Language Selection Sheet ---
+export const LanguageSelectionSheet = ({ visible, onClose, onFinish, currentLanguage = 'en' }: any) => {
+  const { colorScheme } = useAppTheme();
+  const theme = Colors[colorScheme];
+  const [selected, setSelected] = useState(currentLanguage);
+
+  return (
+    <ModalWrapper
+      visible={visible}
+      onClose={onClose}
+      title="Select the language"
+      footer={
+        <Pressable
+          style={[styles.confirmBtn, { backgroundColor: theme.info }]}
+          onPress={() => onFinish(selected)}
+        >
+          <Text style={[styles.confirmBtnText, { color: '#FFF' }]}>Apply changes</Text>
+        </Pressable>
+      }
+    >
+      <View style={styles.sheetContent}>
+        {LANGUAGES.map((lang) => (
+          <Pressable
+            key={lang.id}
+            onPress={() => setSelected(lang.id)}
+            style={styles.optionItem}
+          >
+            <Text style={[styles.optionLabel, { color: theme.text }]}>{lang.label}</Text>
+            <RadioButton 
+               selected={selected === lang.id} 
+               onPress={() => setSelected(lang.id)} 
+               activeColor={theme.info}
+            />
+          </Pressable>
+        ))}
       </View>
     </ModalWrapper>
   );

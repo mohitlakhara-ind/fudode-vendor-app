@@ -48,7 +48,7 @@ export const RestaurantSwitcher = ({
             style={[
               styles.restaurantItem,
               { borderColor: theme.border },
-              selectedId === res.id && { backgroundColor: `${theme.primary}10`, borderColor: theme.primary }
+              selectedId === res.id && { backgroundColor: `${theme.primary}15`, borderColor: theme.primary, borderWidth: 2 }
             ]}
             onPress={() => onSelect(res)}
           >

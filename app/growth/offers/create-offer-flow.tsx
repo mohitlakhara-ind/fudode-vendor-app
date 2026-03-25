@@ -1,41 +1,58 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Pressable, Platform } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Pressable, Platform, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CaretLeft, CaretDown, Info, Users, PencilSimple, CalendarBlank, Tag, Scissors, Globe } from 'phosphor-react-native';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { Colors, Typography, Fonts } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
+import { DateTimePicker } from '@/components/ui/DateTimePicker';
+import { OfferOtpModal } from '@/components/growth/OfferOtpModal';
+
+const { width } = Dimensions.get('window');
 
 const RadioItem = ({ label, description, selected, onSelect }: any) => {
-  const { colorScheme } = useAppTheme();
+  const { colorScheme, isDark } = useAppTheme();
   const theme = Colors[colorScheme];
+  const Gold = theme.primary;
+  const GhostBorder = theme.border + '26';
 
   return (
     <TouchableOpacity 
-      style={styles.radioItem}
+      style={[styles.radioItem, { borderBottomColor: GhostBorder }]}
       onPress={onSelect}
     >
       <View style={{ flex: 1 }}>
-        <ThemedText style={[styles.radioLabel, { color: theme.text }]}>{label}</ThemedText>
+        <ThemedText style={[styles.radioLabel, { color: theme.text, fontFamily: Fonts.bold }]}>{label}</ThemedText>
         {description && <ThemedText style={[styles.radioDesc, { color: theme.textSecondary }]}>{description}</ThemedText>}
       </View>
-      <View style={[styles.radioOuter, { borderColor: selected ? theme.text : theme.border }]}>
-        {selected && <View style={[styles.radioInner, { backgroundColor: theme.text }]} />}
+      <View style={[styles.radioOuter, { borderColor: selected ? Gold : GhostBorder }]}>
+        {selected && <View style={[styles.radioInner, { backgroundColor: Gold }]} />}
       </View>
     </TouchableOpacity>
   );
 };
 
 const ValuePill = ({ label, selected, onSelect }: any) => {
-  const { colorScheme } = useAppTheme();
+  const { colorScheme, isDark } = useAppTheme();
   const theme = Colors[colorScheme];
+  const Gold = theme.primary;
+  const Obsidian = theme.background;
+  const GhostBorder = theme.border + '26';
+
   return (
     <TouchableOpacity 
-      style={[styles.valuePill, { backgroundColor: selected ? theme.primary : theme.surfaceSecondary }]}
+      style={[styles.valuePill, { 
+        backgroundColor: selected ? Gold : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+        borderColor: selected ? Gold : GhostBorder,
+        borderWidth: 1
+      }]}
       onPress={onSelect}
     >
-      <ThemedText style={[styles.valuePillText, { color: '#FFF' }]}>{label}</ThemedText>
+      <ThemedText style={[styles.valuePillText, { color: selected ? (isDark ? '#131313' : '#FFF') : theme.text }]}>{label}</ThemedText>
     </TouchableOpacity>
   );
 };
@@ -43,9 +60,14 @@ const ValuePill = ({ label, selected, onSelect }: any) => {
 export default function CreateOfferFlowScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colorScheme } = useAppTheme();
+  const { colorScheme, isDark } = useAppTheme();
   const theme = Colors[colorScheme];
+  const Obsidian = theme.background;
+  const Gold = theme.primary;
+  const GhostBorder = theme.border + '26';
+  const { queue } = useSelector((state: RootState) => state.order);
   const { type = 'flat' } = useLocalSearchParams<{ type: string }>();
+  
   const [step, setStep] = useState(1);
   const [selectedGroup, setSelectedGroup] = useState('All customers');
   const [selectedPref, setSelectedPref] = useState('All type');
@@ -53,21 +75,32 @@ export default function CreateOfferFlowScreen() {
   const [selectedLimit, setSelectedLimit] = useState('₹120');
   const [selectedDays, setSelectedDays] = useState('All days');
 
+  const [offerStartDate, setOfferStartDate] = useState(new Date());
+  const [isPickerVisible, setIsPickerVisible] = useState(false);
+  const [isOtpVisible, setIsOtpVisible] = useState(false);
+
+  const formatDate = (date: Date) => {
+    const d = date.getDate().toString().padStart(2, '0');
+    const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][date.getMonth()];
+    const y = date.getFullYear();
+    return `${d} ${m} ${y}`;
+  };
+
   const title = type === 'percentage' ? 'Create percentage discount' : 'Create flat discount';
 
   const renderStep1 = () => (
     <View>
       <View style={styles.stepHeader}>
-        <View style={[styles.line, { backgroundColor: theme.border }]} />
-        <ThemedText style={[styles.stepHeaderText, { color: theme.text }]}>CUSTOMER TARGET</ThemedText>
-        <View style={[styles.line, { backgroundColor: theme.border }]} />
+        <View style={[styles.line, { backgroundColor: GhostBorder }]} />
+        <ThemedText style={[styles.stepHeaderText, { color: theme.textSecondary }]}>CUSTOMER TARGET</ThemedText>
+        <View style={[styles.line, { backgroundColor: GhostBorder }]} />
       </View>
-      <ThemedText style={[styles.stepIndicator, { color: theme.textSecondary }]}>( STEP 1/3 )</ThemedText>
+      <ThemedText style={[styles.stepIndicator, { color: theme.textSecondary, opacity: 0.6 }]}>( STEP 1/3 )</ThemedText>
 
-      <View style={[styles.card, { backgroundColor: theme.surfaceSecondary }]}>
+      <View style={[styles.card, { backgroundColor: isDark ? theme.surfaceSecondary + '40' : theme.surfaceSecondary + '10', borderColor: GhostBorder, borderWidth: 1 }]}>
         <View style={styles.cardHeader}>
-          <View style={[styles.iconWrapper, { backgroundColor: theme.primary + '20' }]}>
-            <Users size={24} color={theme.primary} weight="fill" />
+          <View style={[styles.iconWrapper, { backgroundColor: Gold + '15' }]}>
+            <Users size={24} color={Gold} weight="fill" />
           </View>
           <ThemedText style={[styles.cardTitle, { color: theme.text }]}>Choose customer group</ThemedText>
           <Info size={20} color={theme.textSecondary} />
@@ -77,7 +110,7 @@ export default function CreateOfferFlowScreen() {
           selected={selectedGroup === 'All customers'} 
           onSelect={() => setSelectedGroup('All customers')} 
         />
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: GhostBorder }]} />
         <RadioItem 
           label="New customers" 
           description="Customers who haven't ordered in the last 90 days"
@@ -86,23 +119,23 @@ export default function CreateOfferFlowScreen() {
         />
       </View>
 
-      <View style={[styles.card, { backgroundColor: theme.surfaceSecondary }]}>
+      <View style={[styles.card, { backgroundColor: isDark ? theme.surfaceSecondary + '40' : theme.surfaceSecondary + '10', borderColor: GhostBorder, borderWidth: 1 }]}>
         <View style={styles.cardHeader}>
-          <View style={[styles.iconWrapper, { backgroundColor: theme.primary + '20' }]}>
-            <Globe size={24} color={theme.primary} weight="fill" />
+          <View style={[styles.iconWrapper, { backgroundColor: Gold + '15' }]}>
+            <Globe size={24} color={Gold} weight="fill" />
           </View>
           <ThemedText style={[styles.cardTitle, { color: theme.text }]}>Choose offer preference type</ThemedText>
           <Info size={20} color={theme.textSecondary} />
         </View>
         <RadioItem label="All type" selected={selectedPref === 'All type'} onSelect={() => setSelectedPref('All type')} />
-        <View style={[styles.divider, { backgroundColor: theme.border }]} />
+        <View style={[styles.divider, { backgroundColor: GhostBorder }]} />
         <RadioItem 
           label="Offer sensitive" 
           description="Customers highly attracted towards offers"
           selected={selectedPref === 'Offer sensitive'} 
           onSelect={() => setSelectedPref('Offer sensitive')} 
         />
-        <View style={[styles.divider, { backgroundColor: theme.border }]} />
+        <View style={[styles.divider, { backgroundColor: GhostBorder }]} />
         <RadioItem 
           label="Premium" 
           description="Customers less attracted towards offers"
@@ -116,22 +149,22 @@ export default function CreateOfferFlowScreen() {
   const renderStep2 = () => (
     <View>
       <View style={styles.stepHeader}>
-        <View style={[styles.line, { backgroundColor: theme.border }]} />
-        <ThemedText style={[styles.stepHeaderText, { color: theme.text }]}>DISCOUNT SELECTION</ThemedText>
-        <View style={[styles.line, { backgroundColor: theme.border }]} />
+        <View style={[styles.line, { backgroundColor: GhostBorder }]} />
+        <ThemedText style={[styles.stepHeaderText, { color: theme.textSecondary }]}>DISCOUNT SELECTION</ThemedText>
+        <View style={[styles.line, { backgroundColor: GhostBorder }]} />
       </View>
-      <ThemedText style={[styles.stepIndicator, { color: theme.textSecondary }]}>( STEP 2/3 )</ThemedText>
+      <ThemedText style={[styles.stepIndicator, { color: theme.textSecondary, opacity: 0.6 }]}>( STEP 2/3 )</ThemedText>
 
-      <View style={[styles.card, { backgroundColor: theme.surfaceSecondary }]}>
+      <View style={[styles.card, { backgroundColor: isDark ? theme.surfaceSecondary + '40' : theme.surfaceSecondary + '10', borderColor: GhostBorder, borderWidth: 1 }]}>
         <View style={styles.cardHeader}>
-          <View style={[styles.iconWrapper, { backgroundColor: theme.primary + '20' }]}>
-            {type === 'percentage' ? <Scissors size={24} color={theme.primary} weight="fill" /> : <Tag size={24} color={theme.primary} weight="fill" />}
+          <View style={[styles.iconWrapper, { backgroundColor: Gold + '15' }]}>
+            {type === 'percentage' ? <Scissors size={24} color={Gold} weight="fill" /> : <Tag size={24} color={Gold} weight="fill" />}
           </View>
           <ThemedText style={[styles.cardTitle, { color: theme.text }]}>Choose discount value</ThemedText>
           <Info size={20} color={theme.textSecondary} />
         </View>
         
-        <ThemedText style={styles.pillLabel}>{type === 'percentage' ? 'Discount percentage' : 'Discount value'}</ThemedText>
+        <ThemedText style={[styles.pillLabel, { color: theme.text }]}>{type === 'percentage' ? 'Discount percentage' : 'Discount value'}</ThemedText>
         <View style={styles.pillRow}>
           {(type === 'percentage' ? ['60%', '50%', '40%', '30%', '20%', '10%'] : ['₹200', '₹175', '₹150', '₹125', '₹100']).map(v => (
             <ValuePill key={v} label={v} selected={selectedVal === v} onSelect={() => setSelectedVal(v)} />
@@ -140,7 +173,7 @@ export default function CreateOfferFlowScreen() {
 
         {type === 'percentage' && (
           <>
-            <View style={[styles.divider, { marginVertical: 16, backgroundColor: theme.border }]} />
+            <View style={[styles.divider, { marginVertical: 16, backgroundColor: GhostBorder }]} />
             <ThemedText style={[styles.pillLabel, { color: theme.text }]}>Max limit for discount</ThemedText>
             <View style={styles.pillRow}>
               {['₹120', '₹150', '₹180', '₹200'].map(v => (
@@ -151,21 +184,21 @@ export default function CreateOfferFlowScreen() {
         )}
       </View>
 
-      <View style={[styles.card, { backgroundColor: theme.surfaceSecondary }]}>
+      <View style={[styles.card, { backgroundColor: isDark ? theme.surfaceSecondary + '40' : theme.surfaceSecondary + '10', borderColor: GhostBorder, borderWidth: 1 }]}>
         <View style={styles.cardHeader}>
-          <View style={[styles.iconWrapper, { backgroundColor: theme.primary + '20' }]}>
-            <CalendarBlank size={24} color={theme.primary} weight="fill" />
+          <View style={[styles.iconWrapper, { backgroundColor: Gold + '15' }]}>
+            <CalendarBlank size={24} color={Gold} weight="fill" />
           </View>
           <ThemedText style={[styles.cardTitle, { color: theme.text }]}>Select minimum order value</ThemedText>
           <Info size={20} color={theme.textSecondary} />
         </View>
-        <TouchableOpacity style={[styles.pickerBox, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]}>
+        <TouchableOpacity style={[styles.pickerBox, { backgroundColor: theme.background, borderColor: GhostBorder, borderWidth: 1 }]}>
           <ThemedText style={{ color: theme.text, fontSize: 16 }}>None</ThemedText>
           <CaretDown size={20} color={theme.text} />
         </TouchableOpacity>
-        <View style={styles.hintBox}>
+        <View style={[styles.hintBox, { backgroundColor: Gold + '10', borderColor: Gold + '40' }]}>
           <ThemedText style={styles.hintEmoji}>💡</ThemedText>
-          <ThemedText style={styles.hintText}>
+          <ThemedText style={[styles.hintText, { color: Gold }]}>
             To achieve your goal, we recommend you a minimum order value of <ThemedText style={{ fontWeight: '900' }}>₹159</ThemedText>
           </ThemedText>
         </View>
@@ -176,16 +209,16 @@ export default function CreateOfferFlowScreen() {
   const renderStep3 = () => (
     <View>
       <View style={styles.stepHeader}>
-        <View style={[styles.line, { backgroundColor: theme.border }]} />
-        <ThemedText style={[styles.stepHeaderText, { color: theme.text }]}>OFFER TIMINGS</ThemedText>
-        <View style={[styles.line, { backgroundColor: theme.border }]} />
+        <View style={[styles.line, { backgroundColor: GhostBorder }]} />
+        <ThemedText style={[styles.stepHeaderText, { color: theme.textSecondary }]}>OFFER TIMINGS</ThemedText>
+        <View style={[styles.line, { backgroundColor: GhostBorder }]} />
       </View>
-      <ThemedText style={[styles.stepIndicator, { color: theme.textSecondary }]}>( STEP 3/3 )</ThemedText>
+      <ThemedText style={[styles.stepIndicator, { color: theme.textSecondary, opacity: 0.6 }]}>( STEP 3/3 )</ThemedText>
 
-      <View style={[styles.card, { backgroundColor: theme.surfaceSecondary }]}>
+      <View style={[styles.card, { backgroundColor: isDark ? theme.surfaceSecondary + '40' : theme.surfaceSecondary + '10', borderColor: GhostBorder, borderWidth: 1 }]}>
         <View style={styles.cardHeader}>
-          <View style={[styles.iconWrapper, { backgroundColor: theme.primary + '20' }]}>
-            <CalendarBlank size={24} color={theme.primary} weight="fill" />
+          <View style={[styles.iconWrapper, { backgroundColor: Gold + '15' }]}>
+            <CalendarBlank size={24} color={Gold} weight="fill" />
           </View>
           <ThemedText style={[styles.cardTitle, { color: theme.text }]}>Select offer days & start date</ThemedText>
           <Info size={20} color={theme.textSecondary} />
@@ -195,21 +228,30 @@ export default function CreateOfferFlowScreen() {
           {['All days', 'Mon - Thu', 'Fri - Sun'].map(d => (
             <TouchableOpacity 
               key={d}
-              style={[styles.dayPill, { backgroundColor: selectedDays === d ? theme.primary : theme.background }]}
+              style={[styles.dayPill, { 
+                backgroundColor: selectedDays === d ? Gold : theme.background,
+                borderColor: selectedDays === d ? Gold : GhostBorder
+              }]}
               onPress={() => setSelectedDays(d)}
             >
-              <ThemedText style={{ color: selectedDays === d ? '#FFF' : theme.text, fontWeight: '800' }}>{d}</ThemedText>
+              <ThemedText style={{ 
+                color: selectedDays === d ? (isDark ? '#131313' : '#FFF') : theme.text, 
+                fontWeight: '800' 
+              }}>{d}</ThemedText>
             </TouchableOpacity>
           ))}
         </View>
 
-        <View style={[styles.divider, { marginVertical: 20, backgroundColor: theme.border }]} />
+        <View style={[styles.divider, { marginVertical: 20, backgroundColor: GhostBorder }]} />
         
         <ThemedText style={[styles.pillLabel, { color: theme.text }]}>Offer start date</ThemedText>
-        <View style={[styles.dateDisplay, { backgroundColor: theme.background, borderColor: theme.border }]}>
-          <ThemedText style={[styles.dateText, { color: theme.text }]}>18 Mar 2026</ThemedText>
+        <Pressable 
+          onPress={() => setIsPickerVisible(true)}
+          style={[styles.dateDisplay, { backgroundColor: theme.background, borderColor: GhostBorder }]}
+        >
+          <ThemedText style={[styles.dateText, { color: theme.text }]}>{formatDate(offerStartDate)}</ThemedText>
           <PencilSimple size={20} color={theme.text} />
-        </View>
+        </Pressable>
       </View>
 
       <View style={{ padding: 16 }}>
@@ -221,54 +263,66 @@ export default function CreateOfferFlowScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === 'ios' ? 0 : 10) }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <CaretLeft size={28} color={theme.text} weight="bold" />
-        </Pressable>
-        <ThemedText style={[styles.headerTitle, { color: theme.text }]}>{title}</ThemedText>
-      </View>
+    <View style={[styles.container, { backgroundColor: Obsidian, paddingTop: insets.top }]}>
+      <RestaurantHeader
+        restaurantName="Muggs Cafe"
+        locality="Balotra Locality"
+        isOnline={true}
+        onToggleStatus={() => {}}
+        onPressInfo={() => {}}
+        onBack={() => router.back()}
+        title={title}
+      />
 
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: queue.length > 0 ? 240 : 120 }]} showsVerticalScrollIndicator={false}>
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
         {step === 3 && renderStep3()}
       </ScrollView>
 
       {/* Footer */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 16, backgroundColor: theme.background, borderTopColor: theme.border }]}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 16, backgroundColor: Obsidian, borderTopColor: GhostBorder }]}>
         <TouchableOpacity 
-            style={[styles.continueBtn, { backgroundColor: theme.primary }]}
+            style={[styles.continueBtn, { backgroundColor: Gold }]}
             onPress={() => {
               if (step < 3) setStep(step + 1);
-              else console.log('Finish');
+              else setIsOtpVisible(true);
             }}
         >
-          <ThemedText style={[styles.continueBtnText, { color: '#FFF' }]}>Preview offer</ThemedText>
+          <ThemedText style={[styles.continueBtnText, { color: isDark ? '#131313' : '#FFF' }]}>
+            {step === 3 ? 'Create offer' : 'Continue'}
+          </ThemedText>
         </TouchableOpacity>
       </View>
+
+      <DateTimePicker
+        visible={isPickerVisible}
+        mode="date"
+        initialDate={offerStartDate}
+        onClose={() => setIsPickerVisible(false)}
+        onConfirm={(date) => {
+          setOfferStartDate(date);
+          setIsPickerVisible(false);
+        }}
+        title="Selecting offer start date"
+      />
+
+      <OfferOtpModal
+        visible={isOtpVisible}
+        onClose={() => setIsOtpVisible(false)}
+        phoneNumber="+91 9876543210"
+        onVerify={(otp) => {
+          console.log('OTP Verified:', otp);
+          setIsOtpVisible(false);
+          router.replace('/growth/offers');
+        }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-    gap: 16,
-  },
-  backBtn: { padding: 4 },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#FFF',
-    lineHeight: 30,
-    flex: 1,
-  },
   scrollContent: { padding: 16 },
   stepHeader: {
     flexDirection: 'row',
@@ -276,17 +330,15 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 10,
   },
-  line: { flex: 1, height: 1.5, backgroundColor: '#333' },
+  line: { flex: 1, height: 1.5 },
   stepHeaderText: {
-    color: '#FFF',
     fontSize: 18,
     fontWeight: '900',
     letterSpacing: 2,
   },
   stepIndicator: {
     textAlign: 'center',
-    color: '#AAA',
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '800',
     marginTop: 8,
     marginBottom: 24,
@@ -296,6 +348,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
+    borderWidth: 1,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -313,7 +366,6 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 19,
     fontWeight: '900',
-    color: '#FFF',
     flex: 1,
   },
   radioItem: {
@@ -321,6 +373,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: 16,
     gap: 12,
+    borderBottomWidth: 1,
   },
   radioLabel: {
     fontSize: 18,
@@ -329,7 +382,6 @@ const styles = StyleSheet.create({
   },
   radioDesc: {
     fontSize: 13,
-    color: '#999',
     fontWeight: '600',
     lineHeight: 18,
   },
@@ -345,20 +397,14 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#FFF',
   },
   divider: {
     height: 1,
-    backgroundColor: '#333',
     marginHorizontal: -20,
-    borderStyle: 'dotted',
-    borderWidth: 1,
-    borderColor: '#333',
   },
   pillLabel: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#FFF',
     marginBottom: 16,
   },
   pillRow: {
@@ -379,25 +425,24 @@ const styles = StyleSheet.create({
   },
   pickerBox: {
     height: 56,
-    backgroundColor: '#2A2A2A',
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     marginBottom: 16,
+    borderWidth: 1,
   },
   hintBox: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(45, 212, 191, 0.1)',
     borderRadius: 12,
     padding: 12,
     gap: 12,
+    borderWidth: 1,
   },
   hintEmoji: { fontSize: 20 },
   hintText: {
     flex: 1,
-    color: '#2DD4BF',
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 20,
@@ -408,24 +453,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
   },
   dateDisplay: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#2A2A2A',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#444',
   },
   dateText: {
-    color: '#FFF',
     fontSize: 18,
     fontWeight: '800',
   },
   infoText: {
-    color: '#999',
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '600',
@@ -436,19 +478,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 16,
-    backgroundColor: '#121212',
     borderTopWidth: 1,
-    borderTopColor: '#333',
   },
   continueBtn: {
     height: 56,
-    backgroundColor: '#555',
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   continueBtnText: {
-    color: '#FFF',
     fontSize: 18,
     fontWeight: '900',
   },

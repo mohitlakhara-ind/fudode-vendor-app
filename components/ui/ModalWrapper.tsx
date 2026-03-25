@@ -186,7 +186,7 @@ export const ModalWrapper = ({
 const styles = StyleSheet.create({
   rootContainer: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 2000,
+    zIndex: 3000,
     justifyContent: 'flex-end',
   },
   overlay: {
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    top: -30,
+    top: -36,
     alignSelf: 'center',
     zIndex: 3000,
   },
@@ -240,7 +240,6 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-
   },
   headerTitle: {
     ...Typography.H1,

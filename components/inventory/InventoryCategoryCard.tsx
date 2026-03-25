@@ -1,171 +1,175 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { Colors, StatusColors, Typography } from '@/constants/theme';
+import { Colors, Typography } from '@/constants/theme';
 import { InventoryCategory } from '@/constants/mockInventory';
-import { CaretDown, CaretUp } from 'phosphor-react-native';
+import { CaretDown, CaretUp, Warning, CheckCircle } from 'phosphor-react-native';
 import { InventoryItemRow } from './InventoryItemRow';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { PremiumSwitch } from '@/components/ui/PremiumSwitch';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental && !(global as any).nativeFabricUIManager) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 interface InventoryCategoryCardProps {
   category: InventoryCategory;
   onToggleCategory?: (catId: string) => void;
   onToggleItem?: (catId: string, itemId: string) => void;
+  onPressItem?: (catId: string, itemId: string) => void;
 }
 
-export const InventoryCategoryCard = ({ category, onToggleCategory, onToggleItem }: InventoryCategoryCardProps) => {
+export const InventoryCategoryCard = ({ 
+  category, 
+  onToggleCategory, 
+  onToggleItem,
+  onPressItem 
+}: InventoryCategoryCardProps) => {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
-  const isDark = colorScheme === 'dark';
   const [expanded, setExpanded] = useState(false);
 
   const outOfStockCount = category.items.filter(i => !i.isInStock).length;
   const isAllInStock = outOfStockCount === 0;
 
+  const toggleExpand = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpanded(!expanded);
+  };
+
   return (
-    <ThemedView style={[
+    <View style={[
       styles.card, 
       { 
-        borderColor: theme.border,
         backgroundColor: theme.surface,
+        borderColor: theme.border,
       }
     ]}>
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.headerInfo} 
-          onPress={() => setExpanded(!expanded)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.titleRow}>
-            <View style={styles.nameContainer}>
-              <ThemedText type="defaultSemiBold" style={styles.categoryName}>{category.name}</ThemedText>
-              <View style={[styles.countBadge, { backgroundColor: theme.secondary + '20' }]}>
-                <ThemedText style={[styles.countText, { color: theme.secondary }]}>{category.items.length}</ThemedText>
-              </View>
-            </View>
-            <View style={styles.toggleContainer}>
-              <PremiumSwitch
-                value={category.isActive}
-                onValueChange={() => onToggleCategory?.(category.id)}
-                activeColor={StatusColors.Ready}
-              />
-            </View>
-          </View>
-          
-          <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>{category.subtitle}</ThemedText>
-          
-          <TouchableOpacity activeOpacity={0.6}>
-            <ThemedText style={[styles.mappedLink, { color: theme.primary }]}>
-              Mapped to {category.items.length} items <ThemedText style={{ fontSize: 10, color: theme.primary }}>{'>'}</ThemedText>
+      <TouchableOpacity 
+        style={styles.header} 
+        onPress={toggleExpand}
+        activeOpacity={0.9}
+      >
+        <View style={styles.headerMain}>
+          <View style={styles.titleSection}>
+            <ThemedText style={styles.categoryName}>{category.name}</ThemedText>
+            <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
+              {category.items.length} Items • {category.subtitle}
             </ThemedText>
-          </TouchableOpacity>
-
-          <View style={[styles.divider, { borderBottomColor: theme.border }]} />
-
-          <View style={styles.statusRow}>
-              {isAllInStock ? (
-                  <ThemedText style={[styles.statusSummary, { color: StatusColors.Ready }]}>In stock</ThemedText>
-              ) : (
-                  <ThemedText style={[styles.statusSummary, { color: StatusColors.Late }]}>
-                      {outOfStockCount} out of {category.items.length} items is out of stock
-                  </ThemedText>
-              )}
-              <View style={styles.caretBox}>
-                {expanded ? <CaretUp size={16} color={theme.icon} weight="bold" /> : <CaretDown size={16} color={theme.icon} weight="bold" />}
-              </View>
           </View>
-        </TouchableOpacity>
-      </View>
+          
+          <PremiumSwitch
+            value={category.isActive}
+            onValueChange={() => onToggleCategory?.(category.id)}
+            activeColor={theme.success}
+          />
+        </View>
+
+        <View style={styles.headerFooter}>
+          <View style={[
+            styles.statusBadge, 
+            { backgroundColor: isAllInStock ? theme.success + '10' : theme.error + '10' }
+          ]}>
+            {isAllInStock ? (
+              <CheckCircle size={14} color={theme.success} weight="fill" />
+            ) : (
+              <Warning size={14} color={theme.error} weight="fill" />
+            )}
+            <ThemedText style={[styles.statusText, { color: isAllInStock ? theme.success : theme.error }]}>
+              {isAllInStock ? 'All in stock' : `${outOfStockCount} Out of stock`}
+            </ThemedText>
+          </View>
+          
+          <View style={[styles.expandIcon, { backgroundColor: theme.surfaceSecondary }]}>
+            {expanded ? <CaretUp size={14} color={theme.text} weight="bold" /> : <CaretDown size={14} color={theme.text} weight="bold" />}
+          </View>
+        </View>
+      </TouchableOpacity>
 
       {expanded && (
-        <View style={[styles.itemsList, { borderTopColor: theme.border }]}>
-          {category.items.map(item => (
+        <View style={[styles.itemsList, { backgroundColor: theme.surfaceSecondary + '50', borderTopColor: theme.border }]}>
+          {category.items.map((item, index) => (
             <InventoryItemRow 
               key={item.id} 
               item={item} 
+              isLast={index === category.items.length - 1}
               onToggle={(itemId) => onToggleItem?.(category.id, itemId)} 
+              onPress={(itemId) => onPressItem?.(category.id, itemId)}
             />
           ))}
         </View>
       )}
-    </ThemedView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 20,
+    borderRadius: 24,
     borderWidth: 1,
-    marginBottom: 12,
+    marginBottom: 16,
     overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   header: {
-    padding: 12,
+    padding: 16,
   },
-  headerInfo: {
-    width: '100%',
-  },
-  titleRow: {
+  headerMain: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  nameContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    marginBottom: 12,
+  },
+  titleSection: {
+    flex: 1,
+    marginRight: 12,
   },
   categoryName: {
     ...Typography.H2,
-  },
-  countBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  countText: {
-    ...Typography.Caption,
-    fontWeight: '800',
+    fontSize: 18,
+    marginBottom: 2,
   },
   subtitle: {
     ...Typography.Caption,
-    marginBottom: 4,
+    fontSize: 13,
   },
-  mappedLink: {
-    ...Typography.Caption,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  divider: {
-    borderBottomWidth: 1,
-    marginBottom: 8,
-    opacity: 0.1,
-  },
-  statusRow: {
+  headerFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  statusSummary: {
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  statusText: {
     ...Typography.Caption,
+    fontSize: 12,
     fontWeight: '700',
   },
-  caretBox: {
+  expandIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  toggleContainer: {
-    justifyContent: 'center',
-  },
-  switch: {
-    transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }],
-  },
   itemsList: {
-    paddingHorizontal: 16,
-    paddingBottom: 4,
+    paddingHorizontal: 0,
     borderTopWidth: 1,
   },
 });

@@ -23,21 +23,21 @@ const TroubleshootItem = ({ label, status, onPress, showArrow }: TroubleshootIte
       onPress={onPress}
       style={({ pressed }) => [
         styles.item, 
-        { borderBottomColor: theme.border + '15', opacity: pressed ? 0.7 : 1 }
+        { borderBottomColor: theme.border, opacity: pressed ? 0.7 : 1 }
       ]}
     >
       <View style={styles.itemLeft}>
         {status === 'success' ? (
-          <CheckCircle size={22} color="#22C55E" weight="fill" />
+          <CheckCircle size={22} color={theme.success} weight="fill" />
         ) : status === 'warning' ? (
-          <WarningCircle size={22} color="#EF4444" weight="fill" />
+          <WarningCircle size={22} color={theme.error} weight="fill" />
         ) : (
           <View style={{ width: 22 }} />
         )}
         <ThemedText style={[styles.itemLabel, { color: theme.text }]}>{label}</ThemedText>
       </View>
       {(showArrow || status === 'warning') && (
-        <CaretRight size={18} color="#3B82F6" weight="bold" />
+        <CaretRight size={18} color={theme.info} weight="bold" />
       )}
     </Pressable>
   );
@@ -124,7 +124,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#FFF',
     paddingHorizontal: 16,
     marginBottom: 16,
   },
@@ -146,11 +145,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 24,
-    color: '#E0E0E0',
   },
   divider: {
     height: 8,
-    backgroundColor: '#1E1E1E',
     marginTop: 10,
   },
 });

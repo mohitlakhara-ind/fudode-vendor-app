@@ -32,7 +32,7 @@ const ROLES = [
 export default function InviteUserScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colorScheme } = useAppTheme();
+  const { colorScheme, isDark } = useAppTheme();
   const theme = Colors[colorScheme];
 
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -42,15 +42,15 @@ export default function InviteUserScreen() {
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <View style={[styles.header, { paddingTop: insets.top + 10, backgroundColor: theme.surface, borderBottomColor: theme.border + '26' }]}>
           <View style={styles.headerLeft}>
             <Pressable onPress={() => router.back()} style={styles.backButton}>
-              <CaretLeft size={28} color={theme.text} weight="bold" />
+              <CaretLeft size={24} color={theme.text} weight="bold" />
             </Pressable>
-            <Text style={[styles.headerTitle, { color: theme.text }]}>Invite user</Text>
+            <Text style={[styles.headerTitle, { color: theme.text }]}>Invite User</Text>
           </View>
-          <Pressable>
-            <Text style={[styles.headerLink, { color: theme.info }]}>View permissions</Text>
+          <Pressable style={styles.headerRightAction}>
+            <Text style={[styles.headerLink, { color: theme.info }]}>View Permissions</Text>
           </Pressable>
         </View>
 
@@ -64,17 +64,26 @@ export default function InviteUserScreen() {
           >
             {/* Phone Input Box */}
             <View style={styles.inputSection}>
-              <View style={[styles.phoneInputContainer, { borderColor: theme.border + '30', backgroundColor: theme.surface + '50' }]}>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Enter Phone Number</Text>
+              <View style={[
+                styles.phoneInputContainer, 
+                { 
+                  borderColor: phoneNumber.length >= 10 ? theme.info : theme.border + '20', 
+                  backgroundColor: theme.surface,
+                  borderWidth: 1.5
+                }
+              ]}>
                 <Pressable style={styles.countryPicker}>
                   <Text style={styles.flag}>🇮🇳</Text>
                   <Text style={[styles.countryCode, { color: theme.text }]}>+91</Text>
                   <CaretDown size={14} color={theme.text} weight="bold" />
                 </Pressable>
-                <View style={[styles.verticalSeparator, { backgroundColor: theme.border + '30' }]} />
+                <View style={[styles.verticalSeparator, { backgroundColor: theme.border + '15' }]} />
                 <TextInput
-                  placeholder="Enter phone number"
-                  placeholderTextColor={theme.textSecondary}
+                  placeholder="00000 00000"
+                  placeholderTextColor={theme.textSecondary + '60'}
                   keyboardType="phone-pad"
+                  maxLength={10}
                   style={[styles.phoneInput, { color: theme.text }]}
                   value={phoneNumber}
                   onChangeText={setPhoneNumber}
@@ -82,18 +91,21 @@ export default function InviteUserScreen() {
                 />
               </View>
 
-              <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-                This user will receive a link by SMS which they need to click on to accept the invite and be added to your outlet.
-              </Text>
+              <View style={[styles.infoBox, { backgroundColor: theme.info + '10' }]}>
+                <Text style={[styles.infoText, { color: theme.info }]}>
+                  We'll send an SMS invite with a secure link to join your outlet instantly.
+                </Text>
+              </View>
 
               <Pressable style={styles.emailInviteBtn}>
-                <Text style={[styles.emailInviteText, { color: theme.info }]}>Invite by email</Text>
+                <Text style={[styles.emailInviteText, { color: theme.info }]}>Invite via email instead?</Text>
               </Pressable>
             </View>
 
             {/* Role Selection */}
-            <View style={[styles.roleSectionHeader, { backgroundColor: theme.surfaceSecondary + '30' }]}>
-              <Text style={[styles.roleSectionTitle, { color: theme.text }]}>Select user role</Text>
+            <View style={styles.roleHeaderSection}>
+              <Text style={[styles.roleSectionTitle, { color: theme.text }]}>Select User Role</Text>
+              <Text style={[styles.roleSectionSubtitle, { color: theme.textSecondary }]}>Choose permissions for this user</Text>
             </View>
 
             <View style={styles.roleList}>
@@ -101,14 +113,31 @@ export default function InviteUserScreen() {
                 <Pressable
                   key={role.id}
                   onPress={() => setSelectedRole(role.id)}
-                  style={[styles.roleItem, { borderBottomColor: theme.border + '15' }]}
+                  style={[
+                    styles.roleCard, 
+                    { 
+                      backgroundColor: selectedRole === role.id ? theme.info + '10' : theme.surface,
+                      borderColor: selectedRole === role.id ? theme.info : theme.border + '20',
+                      borderWidth: 1.5
+                    }
+                  ]}
                 >
-                  <Text style={[styles.roleLabel, { color: theme.text }]}>{role.label}</Text>
-                  <RadioButton
-                    selected={selectedRole === role.id}
-                    onPress={() => setSelectedRole(role.id)}
-                    activeColor={theme.info}
-                  />
+                  <View style={styles.roleCardMain}>
+                    <View style={[styles.roleIconContainer, { backgroundColor: selectedRole === role.id ? theme.info : theme.surfaceSecondary }]}>
+                       <Text style={{ fontSize: 20 }}>{role.id === 'staff' ? '🤝' : role.id === 'manager' ? '👤' : '👑'}</Text>
+                    </View>
+                    <View style={styles.roleTextContainer}>
+                      <Text style={[styles.roleLabel, { color: theme.text }]}>{role.label}</Text>
+                      <Text style={[styles.roleDescription, { color: theme.textSecondary }]}>
+                        {role.id === 'staff' ? 'Limited access to orders and basics' : role.id === 'manager' ? 'Full operational access and reporting' : 'Complete control over the entire outlet'}
+                      </Text>
+                    </View>
+                    <RadioButton
+                      selected={selectedRole === role.id}
+                      onPress={() => setSelectedRole(role.id)}
+                      activeColor={theme.info}
+                    />
+                  </View>
                 </Pressable>
               ))}
             </View>
@@ -126,7 +155,7 @@ export default function InviteUserScreen() {
               ]}
               disabled={phoneNumber.length < 10}
             >
-              <Text style={[styles.sendInviteBtnText, { color: phoneNumber.length >= 10 ? '#000' : theme.textSecondary }]}>
+              <Text style={[styles.sendInviteBtnText, { color: phoneNumber.length >= 10 ? (isDark ? '#000' : '#FFF') : theme.textSecondary }]}>
                 Send invite
               </Text>
             </Pressable>
@@ -146,7 +175,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -157,109 +187,163 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   headerTitle: {
-    ...Typography.H1,
-    fontSize: 22,
+    ...Typography.H2,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  headerRightAction: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
   headerLink: {
     ...Typography.H3,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   scrollContent: {
-    paddingTop: 16,
+    paddingTop: 24,
   },
   inputSection: {
     paddingHorizontal: 20,
     marginBottom: SECTION_SPACING * 1.5,
   },
+  inputLabel: {
+    ...Typography.H3,
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   phoneInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 60,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    paddingHorizontal: 12,
+    height: 64,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   countryPicker: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     paddingRight: 12,
   },
   flag: {
-    fontSize: 20,
+    fontSize: 22,
   },
   countryCode: {
-    ...Typography.H3,
-    fontSize: 17,
-    fontWeight: '600',
+    ...Typography.H2,
+    fontSize: 18,
+    fontWeight: '700',
   },
   verticalSeparator: {
-    width: 1,
-    height: 24,
+    width: 1.5,
+    height: 28,
   },
   phoneInput: {
     flex: 1,
     ...Typography.H2,
-    fontSize: 18,
+    fontSize: 20,
+    letterSpacing: 1.5,
     paddingHorizontal: 16,
     height: '100%',
+    fontWeight: '700',
+  },
+  infoBox: {
+    marginTop: 20,
+    padding: 14,
+    borderRadius: 14,
   },
   infoText: {
     ...Typography.BodyRegular,
     fontSize: 14,
     lineHeight: 20,
-    marginTop: 16,
-    opacity: 0.8,
+    fontWeight: '500',
   },
   emailInviteBtn: {
-    marginTop: 20,
-    alignSelf: 'flex-start',
+    marginTop: 16,
+    alignSelf: 'center',
   },
   emailInviteText: {
     ...Typography.H3,
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
-  roleSectionHeader: {
+  roleHeaderSection: {
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    marginBottom: 8,
+    marginBottom: 16,
   },
   roleSectionTitle: {
-    ...Typography.H3,
-    fontSize: 16,
-    fontWeight: '700',
+    ...Typography.H2,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  roleSectionSubtitle: {
+    ...Typography.BodyRegular,
+    fontSize: 14,
+    marginTop: 2,
+    opacity: 0.7,
   },
   roleList: {
-    paddingHorizontal: 0,
+    paddingHorizontal: 20,
+    gap: 12,
   },
-  roleItem: {
+  roleCard: {
+    borderRadius: 20,
+    padding: 16,
+  },
+  roleCardMain: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
+    gap: 16,
+  },
+  roleIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  roleTextContainer: {
+    flex: 1,
+    gap: 2,
   },
   roleLabel: {
-    ...Typography.H2,
+    ...Typography.H3,
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  roleDescription: {
+    ...Typography.Caption,
+    fontSize: 13,
+    lineHeight: 18,
+    opacity: 0.7,
   },
   footer: {
     paddingHorizontal: 20,
     paddingTop: 16,
+    backgroundColor: 'transparent',
   },
   sendInviteBtn: {
-    height: 56,
-    borderRadius: 16,
+    height: 60,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
   },
   sendInviteBtnText: {
     ...Typography.H2,
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });

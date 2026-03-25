@@ -14,10 +14,15 @@ import {
   Queue,
   CaretRight,
   ArrowRight,
+  SignOut,
+  Trash,
+  Info
 } from 'phosphor-react-native';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { Colors, Typography } from '@/constants/theme';
+import { Colors, Typography, Fonts } from '@/constants/theme';
 import { PremiumSwitch } from '@/components/ui/PremiumSwitch';
+import { DeleteAccountModal } from '@/components/settings/DeleteAccountModal';
+import { PremiumButton } from '@/components/ui/PremiumButton';
 
 const SECTION_SPACING = 24;
 
@@ -33,16 +38,16 @@ const SettingRow = ({
   const theme = Colors[colorScheme];
 
   return (
-    <View style={styles.rowWrapper}>
+    <View style={[styles.rowCard, { backgroundColor: theme.surfaceSecondary + '10', borderColor: theme.border }]}>
       <View style={styles.rowMain}>
         <View style={styles.rowLeft}>
           <View
-            style={[styles.iconContainer, { backgroundColor: theme.surfaceSecondary + '30' }]}
+            style={[styles.iconBox, { backgroundColor: theme.surfaceSecondary }]}
           >
-            <Icon size={22} color={theme.text} weight="regular" />
+            <Icon size={22} color={theme.text} weight="bold" />
           </View>
           <View style={styles.rowText}>
-            <Text style={[styles.rowTitle, { color: theme.text }]}>{title}</Text>
+            <Text style={[styles.rowTitle, { color: theme.text, fontFamily: Fonts.inter.semibold }]}>{title}</Text>
             {subtitle && (
               <Text style={[styles.rowSubtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
             )}
@@ -52,7 +57,7 @@ const SettingRow = ({
           <PremiumSwitch
             value={value}
             onValueChange={onValueChange}
-            activeColor={theme.success} // Changed to theme.success
+            activeColor={theme.success}
           />
         )}
       </View>
@@ -60,14 +65,31 @@ const SettingRow = ({
   );
 };
 
-const LinkRow = ({ label, showArrow = true, onPress }: { label: string; showArrow?: boolean; onPress?: () => void }) => {
+const LinkRow = ({ label, icon: Icon, showArrow = true, onPress, color, weight }: { label: string; icon?: any; showArrow?: boolean; onPress?: () => void, color?: string, weight?: any }) => {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
 
   return (
-    <Pressable style={styles.linkRow} onPress={onPress}>
-      <Text style={[styles.linkLabel, { color: theme.info }]}>{label}</Text> {/* Changed to theme.info */}
-      {showArrow && <CaretRight size={16} color={theme.info} weight="bold" />} {/* Changed to theme.info */}
+    <Pressable 
+      style={({ pressed }) => [
+        styles.linkCard, 
+        { 
+          backgroundColor: theme.surfaceSecondary + '10', 
+          borderColor: theme.border,
+          opacity: pressed ? 0.8 : 1
+        }
+      ]} 
+      onPress={onPress}
+    >
+      <View style={styles.rowLeft}>
+        {Icon && (
+          <View style={[styles.iconBox, { backgroundColor: theme.surfaceSecondary }]}>
+            <Icon size={20} color={color || theme.info} weight="bold" />
+          </View>
+        )}
+        <Text style={[styles.linkLabel, { color: color || theme.info, fontWeight: weight || '600' }]}>{label}</Text>
+      </View>
+      {showArrow && <CaretRight size={16} color={color || theme.info} weight="bold" />}
     </Pressable>
   );
 };
@@ -78,10 +100,14 @@ const TroubleshootingLink = () => {
   const theme = Colors[colorScheme];
 
   return (
-    <Pressable style={styles.linkAction}>
-      <Text style={[styles.linkText, { color: theme.info }]}>Troubleshoot printing issues</Text>
-      <ArrowRight size={16} color={theme.info} weight="bold" />
-    </Pressable>
+    <PremiumButton
+      label="Troubleshoot printing issues"
+      onPress={() => {}}
+      variant="glassy"
+      color={theme.info}
+      rightIcon={<ArrowRight size={18} color={theme.info} weight="bold" />}
+      style={styles.troubleBtn}
+    />
   );
 };
 
@@ -94,13 +120,14 @@ export default function SettingsScreen() {
 
   const [autoKot, setAutoKot] = useState(false);
   const [liveOrderCount, setLiveOrderCount] = useState(false);
+  const [deleteVisible, setDeleteVisible] = useState(false);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 10, backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <CaretLeft size={28} color={theme.text} weight="bold" />
+          <CaretLeft size={24} color={theme.text} weight="bold" />
         </Pressable>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Settings</Text>
       </View>
@@ -111,13 +138,13 @@ export default function SettingsScreen() {
       >
         {/* KOT Settings */}
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>KOT settings</Text>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: Fonts.poppins.bold }]}>KOT SETTINGS</Text>
         </View>
-        <View style={[styles.section, { backgroundColor: theme.surface + '50' }]}>
+        <View style={styles.section}>
           <SettingRow
             icon={Printer}
             title="Automatic KOT printing"
-            subtitle="Choose whether you want KOTs to be printed automatically when you accept new orders"
+            subtitle="Automatically print KOTs when you accept new orders"
             value={autoKot}
             onValueChange={setAutoKot}
           />
@@ -127,13 +154,13 @@ export default function SettingsScreen() {
 
         {/* Overlay Settings */}
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Overlay settings</Text>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: Fonts.poppins.bold }]}>OVERLAY SETTINGS</Text>
         </View>
-        <View style={[styles.section, { backgroundColor: theme.surface + '50' }]}>
+        <View style={styles.section}>
           <SettingRow
             icon={Queue}
             title="Floating live order count"
-            subtitle="Display a floating counter on your home screen to track orders in real-time"
+            subtitle="Display a floating counter on your home screen"
             value={liveOrderCount}
             onValueChange={setLiveOrderCount}
           />
@@ -141,13 +168,63 @@ export default function SettingsScreen() {
 
         <View style={{ height: SECTION_SPACING }} />
 
-        {/* Links */}
-        <View style={styles.linksContainer}>
-          <LinkRow label="Check system notification settings" />
-          <View style={{ height: 20 }} />
-          <LinkRow label="Still having problems? Open troubleshooting guide" />
+        {/* Support Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: Fonts.poppins.bold }]}>SUPPORT & HELP</Text>
+        </View>
+        <View style={styles.section}>
+          <LinkRow label="System notification settings" />
+          <View style={{ height: 12 }} />
+          <LinkRow label="Troubleshooting guide" />
+          
+          <View style={{ height: 32 }} />
+          <TroubleshootingLink />
+        </View>
+
+        <View style={{ height: SECTION_SPACING }} />
+
+        {/* Account Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: Fonts.poppins.bold }]}>ACCOUNT</Text>
+        </View>
+        <View style={styles.section}>
+          <LinkRow 
+            label="Delete my account" 
+            icon={Trash}
+            color={theme.error} 
+            onPress={() => setDeleteVisible(true)} 
+          />
+        </View>
+
+        <View style={{ height: SECTION_SPACING }} />
+
+        {/* Legal Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: Fonts.poppins.bold }]}>LEGAL</Text>
+        </View>
+        <View style={styles.section}>
+          <LinkRow label="About Fudode" icon={Info} onPress={() => router.push('/about')} />
+          <View style={{ height: 12 }} />
+          <LinkRow label="Terms of Service" onPress={() => router.push('/legal/terms')} />
+          <View style={{ height: 12 }} />
+          <LinkRow label="Privacy Policy" onPress={() => router.push('/legal/privacy')} />
+        </View>
+
+        <View style={{ height: SECTION_SPACING }} />
+        
+        <View style={styles.footer}>
+          <Text style={[styles.footerText, { color: theme.textSecondary }]}>App Version 2.4.0</Text>
         </View>
       </ScrollView>
+
+      <DeleteAccountModal
+        visible={deleteVisible}
+        onClose={() => setDeleteVisible(false)}
+        onConfirm={() => {
+          console.log('Account deletion requested');
+          setDeleteVisible(false);
+        }}
+      />
     </View>
   );
 }
@@ -160,37 +237,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 20,
     gap: 12,
+    borderBottomWidth: 1,
   },
   backButton: {
     padding: 4,
   },
   headerTitle: {
-    ...Typography.H1,
-    fontSize: 22,
+    ...Typography.H2,
+    fontSize: 20,
+    fontWeight: '700',
   },
   scrollContent: {
-    paddingTop: 16,
+    paddingTop: 24,
   },
   sectionHeader: {
     paddingHorizontal: 20,
-    marginBottom: 8,
+    marginTop: 32,
+    marginBottom: 16,
   },
   sectionTitle: {
-    ...Typography.H2,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 12,
+    letterSpacing: 1.2,
+    opacity: 0.6,
   },
   section: {
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  rowWrapper: {
     paddingHorizontal: 20,
-    paddingVertical: 14,
+  },
+  rowCard: {
+    padding: 16,
+    borderRadius: 24,
+    borderWidth: 1,
+  },
+  linkCard: {
+    padding: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   rowMain: {
     flexDirection: 'row',
@@ -202,53 +288,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    gap: 16,
+    gap: 12,
   },
-  iconContainer: {
+  iconBox: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   rowText: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   rowTitle: {
-    ...Typography.H3,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
   },
   rowSubtitle: {
     ...Typography.Caption,
-    fontSize: 13,
-    lineHeight: 18,
-    opacity: 0.8,
-  },
-  linksContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  linkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    fontSize: 12,
+    lineHeight: 16,
+    opacity: 0.6,
   },
   linkLabel: {
     ...Typography.H3,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  linkAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-  },
-  linkText: {
-    ...Typography.H3,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  troubleBtn: {
+    width: '100%',
+  },
+  footer: {
+    alignItems: 'center',
+    marginTop: 40,
+    paddingVertical: 20,
+  },
+  footerText: {
+    ...Typography.Caption,
+    opacity: 0.5,
   },
 });

@@ -23,6 +23,7 @@
     "axios": "^1.13.6",
     "expo": "~54.0.33",
     "expo-application": "~7.0.8",
+    "expo-battery": "^55.0.9",
     "expo-blur": "~15.0.8",
     "expo-constants": "~18.0.13",
     "expo-font": "~14.0.11",

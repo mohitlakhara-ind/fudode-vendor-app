@@ -5,6 +5,8 @@ import { StackedOrderCard } from './StackedOrderCard';
 
 import { Colors } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -17,12 +19,13 @@ export const OrderStackOverlay = ({ orders, onOpenOrder }: OrderStackOverlayProp
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
   const isDark = colorScheme === 'dark';
+  const { isModalOpen } = useSelector((state: RootState) => state.ui);
 
   const visibleOrders = orders.slice(0, 3);
   const remainingCount = orders.length - 3;
 
   return (
-    <View style={styles.container} pointerEvents="box-none">
+    <View style={[styles.container, { zIndex: isModalOpen ? -1 : 0 }]} pointerEvents="box-none">
       {/* Background tray for the stack */}
       <View style={styles.stackBg}>
 
@@ -68,7 +71,7 @@ const styles = StyleSheet.create({
     right: 0,
     width: '100%',
     height: 380,
-    zIndex: 1000,
+    zIndex: 0,
     justifyContent: 'flex-end',
     paddingBottom: 155,
   },

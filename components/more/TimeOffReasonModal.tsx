@@ -23,7 +23,7 @@ const REASONS = [
 ];
 
 export const TimeOffReasonModal = ({ visible, onClose, onContinue }: TimeOffReasonModalProps) => {
-  const { colorScheme } = useAppTheme();
+  const { colorScheme, isDark } = useAppTheme();
   const theme = Colors[colorScheme];
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -52,12 +52,12 @@ export const TimeOffReasonModal = ({ visible, onClose, onContinue }: TimeOffReas
             style={[
               styles.footerButton, 
               styles.continueButton, 
-              { backgroundColor: selectedId ? theme.primary : 'rgba(255,255,255,0.05)' }
+              { backgroundColor: selectedId ? theme.primary : theme.surfaceSecondary + '20' }
             ]}
             disabled={!selectedId}
             onPress={handleContinue}
           >
-            <Text style={[styles.buttonText, { color: selectedId ? '#000' : 'rgba(255,255,255,0.3)' }]}>Continue</Text>
+            <Text style={[styles.buttonText, { color: selectedId ? (isDark ? '#000' : '#FFF') : theme.textSecondary }]}>Continue</Text>
           </Pressable>
         </View>
       }
@@ -70,7 +70,7 @@ export const TimeOffReasonModal = ({ visible, onClose, onContinue }: TimeOffReas
           return (
             <Pressable 
               key={reason.id} 
-              style={styles.reasonItem}
+              style={[styles.reasonItem, { borderBottomColor: theme.border }]}
               onPress={() => setSelectedId(reason.id)}
             >
               <View style={styles.reasonLeft}>
@@ -99,7 +99,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 18,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   reasonLeft: {
     flexDirection: 'row',

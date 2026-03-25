@@ -8,17 +8,49 @@ import { ThemedText } from '@/components/themed-text';
 import { DASHBOARD_MENU_ITEMS, MOCK_DASHBOARD_STATS } from '@/constants/mockDashboard';
 import { Colors, StatusColors, Typography } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { Calendar, CaretDown, CaretRight, CurrencyInr, DotsThreeOutline, EnvelopeSimple, Megaphone, Storefront } from 'phosphor-react-native';
+import { 
+  Calendar, 
+  CaretDown, 
+  CaretRight, 
+  CurrencyInr, 
+  DotsThreeOutline, 
+  EnvelopeSimple, 
+  Megaphone, 
+  Storefront,
+  Rss,
+  TrendUp,
+  Funnel,
+  Users,
+  Tag,
+  Star,
+  Clock,
+  WarningCircle
+} from 'phosphor-react-native';
 import React, { useState } from 'react';
 import { Dimensions, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { FunnelSection, CustomersSection, OffersSection, AdsSection, SummarySection, SalesSection, KitchenEfficiencySection, ServiceQualitySection } from '@/components/dashboard/AnalyticsSections';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
+import { useRouter } from 'expo-router';
 
 const OWNED_RESTAURANTS = [
   { id: '1', name: 'Muggs Cafe', locality: 'Balotra Locality' },
   { id: '2', name: 'Pizza Palace', locality: 'HSR Layout, Bangalore' },
 ];
 
-const HUB_TABS = ['My Feed', 'Sales', 'Funnel', 'Service quality', 'Kitchen efficiency', 'Customers'];
+const HUB_TABS = ['My Feed', 'Sales', 'Funnel', 'Customers', 'Offers', 'Ads', 'Service quality', 'Kitchen efficiency'];
+
+const TAB_ICON_MAP: any = {
+  'My Feed': Rss,
+  'Sales': TrendUp,
+  'Funnel': Funnel,
+  'Customers': Users,
+  'Offers': Tag,
+  'Ads': Megaphone,
+  'Service quality': Star,
+  'Kitchen efficiency': Clock,
+};
 
 const ICON_MAP: any = {
   Storefront,
@@ -29,6 +61,7 @@ const ICON_MAP: any = {
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
   const isDark = colorScheme === 'dark';
@@ -37,6 +70,7 @@ export default function DashboardScreen() {
   const [currentRestaurant, setCurrentRestaurant] = useState(OWNED_RESTAURANTS[0]);
   const [isSwitcherVisible, setIsSwitcherVisible] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const { queue } = useSelector((state: RootState) => state.order);
 
   const renderMetric = (label: string, value: string | number, change: number, showChart: boolean = false) => (
     <View style={styles.metricRow}>
@@ -82,7 +116,7 @@ export default function DashboardScreen() {
       />
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: queue.length > 0 ? 240 : 120 }]}
         showsVerticalScrollIndicator={false}
       >
         <ScrollView
@@ -91,306 +125,126 @@ export default function DashboardScreen() {
           contentContainerStyle={styles.tabContainer}
           style={styles.tabScrollView}
         >
-          {HUB_TABS.map(tab => (
-            <FilterPill
-              key={tab}
-              label={tab}
-              isActive={activeTab === tab}
-              onPress={() => setActiveTab(tab)}
-              color={theme.secondary}
-            />
-          ))}
+          {HUB_TABS.map(tab => {
+            const IconComp = TAB_ICON_MAP[tab];
+            return (
+              <FilterPill
+                key={tab}
+                label={tab}
+                isActive={activeTab === tab}
+                onPress={() => setActiveTab(tab)}
+                color={theme.secondary}
+                icon={IconComp ? <IconComp size={16} color={activeTab === tab ? theme.secondary : theme.icon} weight={activeTab === tab ? "bold" : "regular"} /> : null}
+              />
+            );
+          })}
         </ScrollView>
 
         {/* Date Selector */}
         <View style={styles.dateSelectorArea}>
-          <View style={[styles.dateCard, { backgroundColor: theme.surfaceSecondary }]}>
+          <TouchableOpacity 
+            style={[styles.dateCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            activeOpacity={0.8}
+          >
             <View style={styles.dateInfo}>
               <ThemedText style={styles.dateRange}>Yesterday • 17 Mar 26</ThemedText>
-              <ThemedText style={styles.compareText}>Compared against: 10 Mar 26</ThemedText>
+              <ThemedText style={[styles.compareText, { color: theme.textSecondary }]}>vs 10 Mar 26</ThemedText>
             </View>
-            <View style={styles.dateIconRow}>
-              <Calendar size={22} color={theme.icon} />
-              <CaretDown size={14} color={theme.icon} />
+            <View style={[styles.dateIconCircle, { backgroundColor: theme.surfaceSecondary }]}>
+              <Calendar size={18} color={theme.text} />
             </View>
-          </View>
-          <TouchableOpacity style={[styles.emailButton, { backgroundColor: theme.surfaceSecondary }]}>
-            <EnvelopeSimple size={22} color={theme.icon} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.emailButton, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <EnvelopeSimple size={22} color={theme.text} />
           </TouchableOpacity>
         </View>
 
         {activeTab === 'Sales' && (
-          <DashboardCard
-            title="Sales"
-            subtitle="Last updated: few seconds ago"
-          >
-            {renderMetric('Net sales', `₹${MOCK_DASHBOARD_STATS.sales.netSales}`, MOCK_DASHBOARD_STATS.sales.salesChange, true)}
-            <View style={[styles.cardDivider, { borderColor: theme.border }]} />
-            {renderMetric('Orders delivered', MOCK_DASHBOARD_STATS.sales.ordersDelivered, MOCK_DASHBOARD_STATS.sales.ordersChange, true)}
-            <View style={[styles.cardDivider, { borderColor: theme.border }]} />
-            {renderMetric('Avg. order value', `₹${MOCK_DASHBOARD_STATS.sales.avgOrderValue}`, MOCK_DASHBOARD_STATS.sales.avgChange, true)}
-
-            <View style={styles.legendRow}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendLine, { backgroundColor: theme.primary }]} />
-                <ThemedText style={styles.legendText}>Yesterday</ThemedText>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendLine, { backgroundColor: theme.icon, height: 1, borderWidth: 1, borderColor: theme.icon + '40' }]} />
-                <ThemedText style={styles.legendText}>Day before yesterday</ThemedText>
-              </View>
-            </View>
-
-            <View style={[styles.cardDivider, { borderColor: theme.border }]} />
-            <ThemedText style={[styles.metricLabel, { marginTop: 20 }]}>Sales by category</ThemedText>
-            <View style={styles.fullChartContainer}>
-              <MiniBarChart
-                data={MOCK_DASHBOARD_STATS.categorySales}
-                width={Dimensions.get('window').width - 64}
-                height={100}
-                showLabels
-                color={theme.primary}
-              />
-            </View>
-          </DashboardCard>
-        )}
-
-        {activeTab === 'Kitchen efficiency' && (
           <>
-            <DashboardCard title="KPT & Delayed orders" subtitle="Last updated: a day ago">
-              <View style={styles.gridRow}>
-                <View style={styles.gridItem}>
-                  <ThemedText style={styles.metricLabel}>Avg. KPT</ThemedText>
-                  <View style={styles.valueRow}>
-                    <ThemedText style={[styles.gridValue, { fontSize: 18 }]}>0 sec</ThemedText>
-                    <ThemedText style={[styles.changeTextSmall, { color: theme.textSecondary }]}>-0%</ThemedText>
-                  </View>
+            <DashboardCard
+              title="Sales"
+              subtitle="Last updated: few seconds ago"
+            >
+              {renderMetric('Net sales', `₹${MOCK_DASHBOARD_STATS.sales.netSales}`, MOCK_DASHBOARD_STATS.sales.salesChange, true)}
+              <View style={[styles.cardDivider, { borderColor: theme.border }]} />
+              {renderMetric('Orders delivered', MOCK_DASHBOARD_STATS.sales.ordersDelivered, MOCK_DASHBOARD_STATS.sales.ordersChange, true)}
+              <View style={[styles.cardDivider, { borderColor: theme.border }]} />
+              {renderMetric('Avg. order value', `₹${MOCK_DASHBOARD_STATS.sales.avgOrderValue}`, MOCK_DASHBOARD_STATS.sales.avgChange, true)}
+
+              <View style={styles.legendRow}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendLine, { backgroundColor: theme.primary }]} />
+                  <ThemedText style={styles.legendText}>Yesterday</ThemedText>
                 </View>
-                <View style={[styles.gridItem, styles.gridItemBorder, { borderLeftColor: theme.border }]}>
-                  <ThemedText style={styles.metricLabel}>KPT delayed orders</ThemedText>
-                  <View style={styles.valueRow}>
-                    <ThemedText style={[styles.gridValue, { fontSize: 18 }]}>0%</ThemedText>
-                    <ThemedText style={[styles.changeTextSmall, { color: theme.textSecondary }]}>-0%</ThemedText>
-                  </View>
-                  <ThemedText style={[styles.subMetric, { color: theme.textSecondary }]}>0 min avg. delay</ThemedText>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendLine, { backgroundColor: theme.icon, height: 1, borderWidth: 1, borderColor: theme.icon + '40' }]} />
+                  <ThemedText style={styles.legendText}>Day before yesterday</ThemedText>
                 </View>
               </View>
 
+              <View style={[styles.cardDivider, { borderColor: theme.border }]} />
+              <ThemedText style={[styles.metricLabel, { marginTop: 20 }]}>Sales by category</ThemedText>
               <View style={styles.fullChartContainer}>
-                <View style={styles.yAxis}>
-                  <ThemedText style={styles.yLabel}>4 secs</ThemedText>
-                  <ThemedText style={styles.yLabel}>2 secs</ThemedText>
-                  <ThemedText style={styles.yLabel}>0 sec</ThemedText>
-                </View>
-                <View style={styles.chartWrapper}>
-                  <MiniAreaChart
-                    data={MOCK_DASHBOARD_STATS.sales.chartData}
-                    previousData={MOCK_DASHBOARD_STATS.sales.chartData.map(d => ({ ...d, value: d.value * 0.8 }))}
-                    width={Dimensions.get('window').width - 120}
-                    height={80}
-                    showXLabels
-                    color={theme.text}
-                    previousColor={theme.primary}
-                  />
-                </View>
-              </View>
-
-              <View style={[styles.legendRow, { marginTop: 30 }]}>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendLine, { backgroundColor: theme.text, width: 10, height: 10, borderRadius: 2 }]} />
-                  <ThemedText style={styles.legendText}>Avg. KPT</ThemedText>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendLine, { backgroundColor: theme.primary, width: 10, height: 10, borderRadius: 2 }]} />
-                  <ThemedText style={styles.legendText}>Delayed orders</ThemedText>
-                </View>
-              </View>
-            </DashboardCard>
-
-            <DashboardCard title="Accuracy of FOR marked" subtitle="Last updated: a day ago">
-              <View style={styles.gridRow}>
-                <View style={styles.gridItem}>
-                  <ThemedText style={styles.metricLabel}>Food order ready accuracy</ThemedText>
-                  <View style={styles.valueRow}>
-                    <ThemedText style={[styles.gridValue, { fontSize: 18 }]}>{MOCK_DASHBOARD_STATS.kitchenEfficiency.foodReadyAccuracy}%</ThemedText>
-                    <ThemedText style={[styles.changeTextSmall, { color: StatusColors.Ready }]}>+{MOCK_DASHBOARD_STATS.kitchenEfficiency.foodReadyChange}%</ThemedText>
-                  </View>
-                </View>
-                <View style={[styles.gridItem, styles.gridItemBorder, { borderLeftColor: theme.border }]}>
-                  <ThemedText style={styles.metricLabel}>Orders with high rider handover time</ThemedText>
-                  <View style={styles.valueRow}>
-                    <ThemedText style={[styles.gridValue, { fontSize: 18 }]}>{MOCK_DASHBOARD_STATS.kitchenEfficiency.riderHandoverTime}</ThemedText>
-                    <ThemedText style={[styles.changeTextSmall, { color: theme.textSecondary }]}>{MOCK_DASHBOARD_STATS.kitchenEfficiency.handoverChange}%</ThemedText>
-                  </View>
-                  <ThemedText style={[styles.subMetric, { color: theme.textSecondary }]}>{MOCK_DASHBOARD_STATS.kitchenEfficiency.avgHandoverTime} sec avg. time</ThemedText>
-                </View>
-              </View>
-
-              <View style={styles.fullChartContainer}>
-                <View style={styles.yAxis}>
-                  <ThemedText style={styles.yLabel}>1%</ThemedText>
-                  <ThemedText style={styles.yLabel}>0.5%</ThemedText>
-                  <ThemedText style={styles.yLabel}>0%</ThemedText>
-                </View>
-                <View style={styles.chartWrapper}>
-                  <MiniAreaChart
-                    data={MOCK_DASHBOARD_STATS.sales.chartData}
-                    previousData={MOCK_DASHBOARD_STATS.sales.chartData.map(d => ({ ...d, value: d.value * 1.1 }))}
-                    width={Dimensions.get('window').width - 120}
-                    height={80}
-                    showXLabels
-                    color={theme.text}
-                    previousColor={theme.icon}
-                  />
-                </View>
-              </View>
-
-              <View style={[styles.legendRow, { marginTop: 30 }]}>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendLine, { backgroundColor: theme.text, width: 10, height: 10, borderRadius: 2 }]} />
-                  <ThemedText style={styles.legendText}>FOR accuracy</ThemedText>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendLine, { backgroundColor: theme.icon, width: 10, height: 10, borderRadius: 2 }]} />
-                  <ThemedText style={styles.legendText}>Orders with high RHT</ThemedText>
-                </View>
-              </View>
-            </DashboardCard>
-          </>
-        )}
-
-        {activeTab === 'My Feed' && (
-          <>
-            <View style={[styles.insightsCard, { backgroundColor: theme.surface }]}>
-              <ThemedText style={[styles.insightsValue, { color: theme.text }]}>0</ThemedText>
-              <ThemedText style={[styles.insightsChange, { color: theme.textSecondary }]}>- 0%</ThemedText>
-              <TouchableOpacity style={[styles.insightsButton, { borderColor: theme.border }]}>
-                <ThemedText style={[styles.insightsButtonText, { color: theme.text }]}>Get deeper insights</ThemedText>
-              </TouchableOpacity>
-            </View>
-            <DashboardCard title="Service quality" subtitle="Last updated: an hour ago">
-              <View style={styles.gridRow}>
-                <View style={styles.gridItem}>
-                  <ThemedText style={styles.metricLabel}>Complaints</ThemedText>
-                  <View style={styles.valueRow}>
-                    <ThemedText style={styles.gridValue}>{MOCK_DASHBOARD_STATS.serviceQuality.complaints}%</ThemedText>
-                    <ThemedText style={[styles.changeTextSmall, { color: theme.textSecondary }]}>-0%</ThemedText>
-                  </View>
-                  <ThemedText style={[styles.subMetric, { color: theme.textSecondary }]}>{MOCK_DASHBOARD_STATS.serviceQuality.refundedPercent}% refunded</ThemedText>
-                </View>
-              </View>
-              <View style={[styles.cardDivider, { marginVertical: 16, borderColor: theme.border }]} />
-              <View style={styles.gridRow}>
-                <View style={styles.gridItem}>
-                  <ThemedText style={styles.metricLabel}>Poor rated orders</ThemedText>
-                  <View style={styles.valueRow}>
-                    <ThemedText style={styles.gridValue}>{MOCK_DASHBOARD_STATS.serviceQuality.poorRatedOrders}%</ThemedText>
-                    <ThemedText style={[styles.changeTextSmall, { color: theme.textSecondary }]}>-0%</ThemedText>
-                  </View>
-                  <ThemedText style={[styles.subMetric, { color: theme.textSecondary }]}>1 or 2 star rated</ThemedText>
-                </View>
-                <View style={[styles.gridItem, styles.gridItemBorder, { borderLeftColor: theme.border }]}>
-                  <ThemedText style={styles.metricLabel}>Online time %</ThemedText>
-                  <View style={styles.valueRow}>
-                    <ThemedText style={styles.gridValue}>{MOCK_DASHBOARD_STATS.serviceQuality.onlineTimePercent}%</ThemedText>
-                    <ThemedText style={[styles.changeTextSmall, { color: StatusColors.Ready }]}>+0%</ThemedText>
-                  </View>
-                  <ThemedText style={[styles.subMetric, { color: theme.textSecondary }]}>Est. lost sales ₹{MOCK_DASHBOARD_STATS.serviceQuality.lostSales}</ThemedText>
-                </View>
-              </View>
-              <View style={styles.fullChartContainer}>
-                <View style={styles.yAxis}>
-                  <ThemedText style={styles.yLabel}>100%</ThemedText>
-                  <ThemedText style={styles.yLabel}>50%</ThemedText>
-                  <ThemedText style={styles.yLabel}>0%</ThemedText>
-                </View>
-                <View style={styles.chartWrapper}>
-                  <MiniAreaChart
-                    data={MOCK_DASHBOARD_STATS.sales.chartData}
-                    width={Dimensions.get('window').width - 120}
-                    height={80}
-                    showXLabels
-                    color={StatusColors.Ready}
-                  />
-                </View>
-              </View>
-            </DashboardCard>
-
-            <DashboardCard title="Ratings Distribution" subtitle="Distribution of user ratings over current period">
-              <View style={[styles.fullChartContainer, { height: 140 }]}>
                 <MiniBarChart
-                  data={MOCK_DASHBOARD_STATS.ratingDistribution}
-                  width={Dimensions.get('window').width - 100}
+                  data={MOCK_DASHBOARD_STATS.categorySales}
+                  width={Dimensions.get('window').width - 64}
                   height={100}
                   showLabels
                   color={theme.primary}
                 />
               </View>
             </DashboardCard>
-            <DashboardCard title="Kitchen efficiency" subtitle="Last updated: a day ago">
-              <View style={styles.gridRow}>
-                <View style={styles.gridItem}>
-                  <ThemedText style={styles.metricLabel}>Avg. kitchen preparation time</ThemedText>
-                  <View style={styles.valueRow}>
-                    <ThemedText style={styles.gridValue}>{MOCK_DASHBOARD_STATS.kitchenEfficiency.avgPrepTime}</ThemedText>
-                  </View>
-                </View>
-                <View style={[styles.gridItem, styles.gridItemBorder, { borderLeftColor: theme.border }]}>
-                  <ThemedText style={styles.metricLabel}>KPT delayed orders</ThemedText>
-                  <View style={styles.valueRow}>
-                    <ThemedText style={styles.gridValue}>{MOCK_DASHBOARD_STATS.kitchenEfficiency.kptDelayedOrders}%</ThemedText>
-                    <ThemedText style={[styles.changeTextSmall, { color: theme.textSecondary }]}>{MOCK_DASHBOARD_STATS.kitchenEfficiency.kptDelayedChange}%</ThemedText>
-                  </View>
-                  <ThemedText style={[styles.subMetric, { color: theme.textSecondary }]}>{MOCK_DASHBOARD_STATS.kitchenEfficiency.avgDelay} min avg. delay</ThemedText>
-                </View>
-              </View>
-            </DashboardCard>
+            <SalesSection />
+          </>
+        )}
 
-            <DashboardCard title="Mealtime KPTs" subtitle="Last updated: a day ago">
-              {MOCK_DASHBOARD_STATS.mealtimeKPT?.map((kpt, idx) => (
-                <View key={idx}>
-                  <View style={styles.kptRow}>
-                    <View style={styles.kptLabelBox}>
-                      <View style={[styles.kptDot, { backgroundColor: kpt.color }]} />
-                      <View>
-                        <ThemedText style={styles.kptTitle}>{kpt.label}</ThemedText>
-                        <ThemedText style={styles.kptTime}>{kpt.time}</ThemedText>
-                      </View>
-                    </View>
-                    <View style={styles.valueRow}>
-                      <ThemedText style={styles.gridValue}>{kpt.value}</ThemedText>
-                      <ThemedText style={[styles.changeTextSmall, { color: kpt.change >= 0 ? StatusColors.Late : StatusColors.Ready }]}>
-                        {kpt.change >= 0 ? '+' : ''}{kpt.change}%
-                      </ThemedText>
-                    </View>
-                  </View>
-                  {idx < (MOCK_DASHBOARD_STATS.mealtimeKPT?.length || 0) - 1 && <View style={[styles.cardDivider, { borderColor: theme.border }]} />}
-                </View>
-              ))}
-            </DashboardCard>
+        {activeTab === 'Funnel' && <FunnelSection />}
+        {activeTab === 'Customers' && <CustomersSection />}
+        {activeTab === 'Offers' && <OffersSection />}
+        {activeTab === 'Ads' && <AdsSection />}
+
+        {activeTab === 'Kitchen efficiency' && <KitchenEfficiencySection />}
+        {activeTab === 'Service quality' && <ServiceQualitySection />}
+
+        {activeTab === 'My Feed' && (
+          <>
+            <View style={[styles.insightsCard, { backgroundColor: theme.surface, borderColor: theme.border, marginBottom: 24 }]}>
+               <View style={styles.insightsHeader}>
+                  <ThemedText style={[styles.insightsTitle, { color: theme.textSecondary }]}>YOUR FEED INSIGHTS</ThemedText>
+               </View>
+              <View style={styles.insightsMain}>
+                <ThemedText style={[styles.insightsValue, { color: theme.text }]}>0</ThemedText>
+                <ThemedText style={[styles.insightsChange, { color: theme.textSecondary }]}>- 0% from last week</ThemedText>
+              </View>
+              <TouchableOpacity style={[styles.insightsButton, { backgroundColor: theme.primary }]}>
+                <ThemedText style={[styles.insightsButtonText, { color: theme.background }]}>Get deeper insights</ThemedText>
+              </TouchableOpacity>
+            </View>
+
+            <ThemedText style={[styles.menuHeadline, { marginBottom: 16 }]}>Dashboard Summary</ThemedText>
+            <SummarySection onTabPress={setActiveTab} />
           </>
         )}
 
         {/* Shortcuts/Menu Items */}
         <View style={styles.menuSection}>
           <ThemedText style={styles.menuHeadline}>How can we help you?</ThemedText>
-          <View style={[styles.menuList, { borderColor: theme.border }]}>
-            {DASHBOARD_MENU_ITEMS.map((item, index) => {
+          <View style={styles.menuGrid}>
+            {DASHBOARD_MENU_ITEMS.map((item) => {
               const IconComp = ICON_MAP[item.icon];
               return (
                 <TouchableOpacity
                   key={item.id}
-                  style={[
-                    styles.menuItem,
-                    index < DASHBOARD_MENU_ITEMS.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.border }
-                  ]}
+                  style={[styles.gridCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                  onPress={() => item.route && router.push(item.route as any)}
+                  activeOpacity={0.7}
                 >
-                  <View style={styles.menuItemLeft}>
-                    <IconComp size={20} color={theme.icon} />
-                    <ThemedText style={styles.menuItemLabel}>{item.label}</ThemedText>
+                  <View style={[styles.iconBox, { backgroundColor: (item as any).color + '15' }]}>
+                    <IconComp size={22} color={(item as any).color} weight="fill" />
                   </View>
-                  <View style={{ opacity: 0.5 }}>
-                    <CaretRight size={18} color={theme.icon} />
+                  <View style={styles.cardContent}>
+                    <ThemedText style={styles.gridLabel}>{item.label}</ThemedText>
+                    <CaretRight size={14} color={theme.textSecondary} weight="bold" />
                   </View>
                 </TouchableOpacity>
               );
@@ -421,59 +275,66 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginBottom: 8,
-    gap: 0,
   },
   dateSelectorArea: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   dateCard: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    height: 56,
-    borderRadius: 16,
+    paddingHorizontal: 18,
+    height: 64,
+    borderRadius: 22,
+    borderWidth: 1.5,
   },
   dateInfo: {
     gap: 2,
   },
   dateRange: {
     ...Typography.H3,
+    fontSize: 15,
     fontWeight: '800',
   },
   compareText: {
     ...Typography.Caption,
-    opacity: 0.5,
+    fontSize: 11,
     fontWeight: '600',
+    opacity: 0.6,
   },
-  dateIconRow: {
-    flexDirection: 'row',
+  dateIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
   },
   emailButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
+    width: 64,
+    height: 64,
+    borderRadius: 22,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   metricRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 16,
   },
   metricLabelArea: {
     flex: 1,
   },
   metricLabel: {
-    ...Typography.BodyRegular,
+    ...Typography.Caption,
+    fontSize: 13,
+    fontWeight: '600',
     opacity: 0.6,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   valueRow: {
     flexDirection: 'row',
@@ -482,11 +343,13 @@ const styles = StyleSheet.create({
   },
   metricValue: {
     ...Typography.Display,
-    fontSize: 24,
+    fontSize: 28,
+    lineHeight: 34,
   },
   changeText: {
     ...Typography.Caption,
-    fontWeight: '600',
+    fontWeight: '800',
+    fontSize: 12,
   },
   changeTextSmall: {
     ...Typography.Caption,
@@ -565,34 +428,42 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   menuSection: {
-    marginTop: 24,
+    marginTop: 32,
   },
   menuHeadline: {
-    ...Typography.H1,
+    ...Typography.H2,
+    fontSize: 20,
     marginBottom: 16,
+    paddingHorizontal: 4,
   },
-  menuList: {
-    borderWidth: 1,
-    borderRadius: 20,
-    overflow: 'hidden',
+  menuGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
-  menuItem: {
+  gridCard: {
+    width: (Dimensions.get('window').width - 44) / 2,
+    padding: 16,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    gap: 12,
+  },
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 18,
   },
-  menuItemBorder: {
-    borderBottomWidth: 1,
-  },
-  menuItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  menuItemLabel: {
+  gridLabel: {
     ...Typography.H3,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
   hubFooter: {
     marginTop: 60,
@@ -633,33 +504,49 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   insightsCard: {
-    borderRadius: 24,
+    borderRadius: 28,
     padding: 24,
+    marginBottom: 20,
+    borderWidth: 1.5,
+  },
+  insightsHeader: {
     marginBottom: 16,
     alignItems: 'center',
   },
+  insightsTitle: {
+    ...Typography.Caption,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  insightsMain: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
   insightsValue: {
     ...Typography.Display,
-    fontSize: 32,
-    fontWeight: '900',
+    fontSize: 48,
+    lineHeight: 56,
   },
   insightsChange: {
     ...Typography.BodyRegular,
+    fontSize: 14,
     fontWeight: '600',
-    opacity: 0.5,
-    marginTop: 4,
+    opacity: 0.6,
   },
   insightsButton: {
-    marginTop: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingVertical: 14,
+    borderRadius: 16,
     width: '100%',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   insightsButtonText: {
     ...Typography.H3,
+    fontSize: 15,
     fontWeight: '800',
   },
 });

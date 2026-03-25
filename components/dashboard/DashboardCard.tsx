@@ -38,14 +38,15 @@ export const DashboardCard = ({ title, subtitle, onPressOptions, children }: Das
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
-    borderWidth: 1,
-    marginBottom: 16,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    marginBottom: 20,
     overflow: 'hidden',
   },
   header: {
-    padding: 18,
-    borderBottomWidth: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
   },
   headerTitleRow: {
     flexDirection: 'row',
@@ -53,17 +54,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
-    ...Typography.H2,
+    ...Typography.H3,
+    fontSize: 18,
+    fontWeight: '700',
   },
   subtitle: {
     ...Typography.Caption,
+    fontSize: 12,
     marginTop: 2,
-    fontWeight: '600',
+    opacity: 0.5,
   },
   optionsButton: {
     padding: 4,
+    marginTop: -4,
   },
   content: {
-    padding: 16,
+    padding: 20,
+    paddingTop: 10,
   },
 });

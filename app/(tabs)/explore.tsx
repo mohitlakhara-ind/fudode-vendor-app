@@ -20,10 +20,20 @@ import { ThemedView } from '@/components/themed-view';
 import { GlassView } from '@/components/ui/GlassView';
 import { PremiumButton } from '@/components/ui/PremiumButton';
 import { Separator } from '@/components/ui/Separator';
-import { Colors, Typography, Fonts } from '@/constants/theme';
+import { Colors, Typography, Fonts, StatusColors } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
+import { RestaurantSwitcher } from '@/components/orders/RestaurantSwitcher';
+import { useState } from 'react';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const OWNED_RESTAURANTS = [
+  { id: '1', name: 'Muggs Cafe', locality: 'Balotra Locality' },
+  { id: '2', name: 'Pizza Palace', locality: 'HSR Layout, Bangalore' },
+];
 
 const STATS = [
   { label: 'Orders', value: '124', trend: '+12%', icon: ChartLineUp, color: '#0066FF' },
@@ -44,6 +54,11 @@ export default function ExploreScreen() {
   const theme = Colors[colorScheme];
   const isDark = colorScheme === 'dark';
 
+  const [isOnline, setIsOnline] = useState(true);
+  const [currentRestaurant, setCurrentRestaurant] = useState(OWNED_RESTAURANTS[0]);
+  const [isSwitcherVisible, setIsSwitcherVisible] = useState(false);
+  const { queue } = useSelector((state: RootState) => state.order);
+
   return (
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
       {/* DECORATIVE BACKGROUND */}
@@ -52,13 +67,26 @@ export default function ExploreScreen() {
 
       <ScrollView 
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: queue.length > 0 ? 240 : 120 }]}
       >
-        {/* HEADER */}
-        <View style={styles.header}>
-          <ThemedText style={styles.greeting}>Growth & Insights</ThemedText>
-          <ThemedText style={styles.subtitle}>Track your business progress today</ThemedText>
-        </View>
+      <RestaurantHeader
+        restaurantName={currentRestaurant.name}
+        locality={currentRestaurant.locality}
+        isOnline={isOnline}
+        onToggleStatus={() => setIsOnline(!isOnline)}
+        onPressInfo={() => setIsSwitcherVisible(true)}
+      />
+
+      <RestaurantSwitcher
+        visible={isSwitcherVisible}
+        onClose={() => setIsSwitcherVisible(false)}
+        restaurants={OWNED_RESTAURANTS}
+        selectedId={currentRestaurant.id}
+        onSelect={(res) => {
+          setCurrentRestaurant(res);
+          setIsSwitcherVisible(false);
+        }}
+      />
 
         {/* STATS GRID */}
         <View style={styles.statsGrid}>
@@ -92,7 +120,7 @@ export default function ExploreScreen() {
           <Pressable key={index} style={({ pressed }) => [styles.actionItem, pressed && { opacity: 0.7 }]}>
             <GlassView intensity={isDark ? 20 : 40} style={styles.actionCard}>
               <View style={[styles.actionIcon, { backgroundColor: action.color + '15' }]}>
-                <action.icon size={24} color={action.color} weight="duotone" />
+                <action.icon size={24} color={action.color} weight="bold" />
               </View>
               <View style={styles.actionText}>
                 <ThemedText style={styles.actionTitle}>{action.title}</ThemedText>
