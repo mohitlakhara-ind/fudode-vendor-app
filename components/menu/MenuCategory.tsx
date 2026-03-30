@@ -3,7 +3,7 @@ import { StyleSheet, View, Pressable, LayoutAnimation } from 'react-native';
 import { CaretDown, CaretUp, DotsThreeVertical, SquaresFour } from 'phosphor-react-native';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { Colors } from '@/constants/theme';
-import { InventoryCategory } from '@/constants/mockInventory';
+import { InventoryCategory, InventoryItem } from '@/constants/mockInventory';
 import { ThemedText } from '@/components/themed-text';
 import { PremiumSwitch } from '@/components/ui/PremiumSwitch';
 import { MenuItemCard } from './MenuItemCard';
@@ -15,9 +15,10 @@ interface MenuCategoryProps {
   category: InventoryCategory;
   onToggleCategory?: (id: string, active: boolean) => void;
   onToggleItemStock?: (catId: string, itemId: string, inStock: boolean) => void;
+  onEditItem?: (item: InventoryItem, category: InventoryCategory) => void;
 }
 
-export const MenuCategory = ({ category, onToggleCategory, onToggleItemStock }: MenuCategoryProps) => {
+export const MenuCategory = ({ category, onToggleCategory, onToggleItemStock, onEditItem }: MenuCategoryProps) => {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
   const [isExpanded, setIsExpanded] = useState(true);
@@ -64,6 +65,7 @@ export const MenuCategory = ({ category, onToggleCategory, onToggleItemStock }: 
                 key={item.id} 
                 item={item} 
                 onToggleStock={(id, inStock) => onToggleItemStock?.(category.id, id, inStock)}
+                onEdit={(item) => onEditItem?.(item, category)}
               />
             ))}
           </View>

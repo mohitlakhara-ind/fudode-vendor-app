@@ -62,7 +62,7 @@ export default function StaffScreen() {
               <View style={styles.ownerInfoRow}>
                 <View style={[styles.avatarContainer, { backgroundColor: theme.primary + '10' }]}>
                   <Image
-                    source={require('@/assets/images/react-logo.png')}
+                    source={require('@/assets/images/icon.png')}
                     style={styles.avatar}
                   />
                   <View style={[styles.onlineIndicator, { backgroundColor: theme.success, borderColor: theme.background }]} />

@@ -155,7 +155,7 @@ export default function MoreScreen() {
                 style={[styles.profileCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
             >
                 <Image
-                    source={require('@/assets/images/react-logo.png')}
+                    source={require('@/assets/images/icon.png')}
                     style={[styles.profilePic, { borderColor: theme.primary + '20' }]}
                 />
                 <View style={styles.profileInfo}>

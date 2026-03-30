@@ -72,7 +72,7 @@ export default function SessionsScreen() {
         <View style={[styles.profileCard, { backgroundColor: theme.surface, borderColor: theme.border + '20', borderWidth: 1 }]}>
           <View style={[styles.avatarContainer, { backgroundColor: theme.primary + '10' }]}>
             <Image
-              source={require('@/assets/images/react-logo.png')}
+              source={require('@/assets/images/icon.png')}
               style={styles.avatar}
             />
             <View style={[styles.onlineIndicator, { backgroundColor: theme.success, borderColor: theme.background }]} />

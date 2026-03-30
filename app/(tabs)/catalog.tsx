@@ -21,12 +21,14 @@ import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
 import { RestaurantSwitcher } from '@/components/orders/RestaurantSwitcher';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
+import { useRouter } from 'expo-router';
 
 // Extracted Components
 import { PhotoPromoBanner } from '@/components/menu/PhotoPromoBanner';
 import { MenuCategory } from '@/components/menu/MenuCategory';
 import { MarkOutOfStockSheet } from '@/components/inventory/MarkOutOfStockSheet';
-import { StickyCategoryNav } from '@/components/menu/StickyCategoryNav';
+import { CategoriesBottomSheet } from '@/components/menu/CategoriesBottomSheet';
+import { AddItemActionSheet } from '@/components/menu/AddItemActionSheet';
 import { SearchBar } from '@/components/orders/SearchBar';
 import { InventoryCategory } from '@/constants/mockInventory';
 
@@ -39,6 +41,7 @@ export default function CatalogScreen() {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('All items');
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -54,6 +57,8 @@ export default function CatalogScreen() {
   const [activeItem, setActiveItem] = useState<any>(null);
   const [activeCategory, setActiveCategory] = useState<any>(null);
   const [sheetType, setSheetType] = useState<'item' | 'subcategory'>('item');
+  const [categoriesSheetVisible, setCategoriesSheetVisible] = useState(false);
+  const [addItemSheetVisible, setAddItemSheetVisible] = useState(false);
 
   const handleToggleCategory = (catId: string, isActive: boolean) => {
     const category = inventory.find(c => c.id === catId);
@@ -64,7 +69,13 @@ export default function CatalogScreen() {
       return;
     }
     // Turning ON
-    setInventory(prev => prev.map(cat => cat.id === catId ? { ...cat, isActive: true } : cat));
+    setInventory(prev => prev.map(cat => 
+      cat.id === catId ? { 
+        ...cat, 
+        isActive: true,
+        items: cat.items.map(i => ({ ...i, isInStock: true }))
+      } : cat
+    ));
   };
 
   const handleToggleItemStatus = (catId: string, itemId: string, isInStock: boolean) => {
@@ -82,6 +93,7 @@ export default function CatalogScreen() {
       if (cat.id !== catId) return cat;
       return {
         ...cat,
+        isActive: true,
         items: cat.items.map(i => i.id === itemId ? { ...i, isInStock: true } : i)
       };
     }));
@@ -146,13 +158,6 @@ export default function CatalogScreen() {
           </ScrollView>
         </View>
 
-        {/* Sticky Category Nav */}
-        <StickyCategoryNav 
-          categories={inventory.map(c => ({ id: c.id, name: c.name, count: c.items.length }))}
-          activeCategoryId={activeCategoryId}
-          onCategoryPress={setActiveCategoryId}
-        />
-
         <TabSwitcher
           tabs={['All items', 'Add-ons']}
           activeTab={activeTab}
@@ -167,6 +172,12 @@ export default function CatalogScreen() {
             category={category} 
             onToggleCategory={handleToggleCategory}
             onToggleItemStock={handleToggleItemStatus}
+            onEditItem={(item, cat) => {
+              router.push({
+                pathname: '/menu/item-details',
+                params: { categoryName: cat.name, subCategoryName: 'Edit Item', itemId: item.id }
+              } as any);
+            }}
           />
         ))}
       </ScrollView>
@@ -182,36 +193,71 @@ export default function CatalogScreen() {
           if (sheetType === 'item') {
             setInventory(prev => prev.map(cat => {
               if (cat.id !== activeItem.catId) return cat;
+              
+              const updatedItems = cat.items.map(i =>
+                i.id === activeItem.id ? { ...i, isInStock: false } : i
+              );
+
+              // If all items are now out of stock, turn OFF the category
+              const allOutOfStock = updatedItems.every(i => !i.isInStock);
+
               return {
                 ...cat,
-                items: cat.items.map(i => i.id === activeItem.id ? { ...i, isInStock: false } : i)
+                isActive: allOutOfStock ? false : cat.isActive,
+                items: updatedItems
               };
             }));
           } else {
             setInventory(prev => prev.map(cat =>
-              cat.id === activeCategory.id ? { ...cat, isActive: false } : cat
+              cat.id === activeCategory.id ? { 
+                ...cat, 
+                isActive: false,
+                items: cat.items.map(i => ({ ...i, isInStock: false })) 
+              } : cat
             ));
           }
           setShowStockSheet(false);
         }}
       />
 
+      <CategoriesBottomSheet
+        visible={categoriesSheetVisible}
+        categories={inventory.map(c => ({ id: c.id, name: c.name, count: c.items.length }))}
+        activeCategoryId={activeCategoryId}
+        onClose={() => setCategoriesSheetVisible(false)}
+        onSelectCategory={setActiveCategoryId}
+      />
+
+      <AddItemActionSheet
+        visible={addItemSheetVisible}
+        onClose={() => setAddItemSheetVisible(false)}
+        onAddItem={() => router.push('/menu/add-item' as any)}
+        onAddCategory={() => console.log('Add category')}
+        onAddSubCategory={() => console.log('Add sub category')}
+      />
+
       {/* Floating Actions */}
       <View style={[styles.floatingActionsWrapper, { bottom: queue.length > 0 ? 220 : 120 }]}>
-        <Pressable style={({ pressed }) => [
-          styles.categoryFab, 
-          styles.shadowLarge,
-          { backgroundColor: theme.surface, borderColor: theme.border, transform: [{ scale: pressed ? 0.9 : 1 }] }
-        ]}>
+        <Pressable 
+          onPress={() => setCategoriesSheetVisible(true)}
+          style={({ pressed }) => [
+            styles.categoryFab, 
+            styles.shadowLarge,
+            { backgroundColor: theme.surface, borderColor: theme.border, transform: [{ scale: pressed ? 0.9 : 1 }] }
+          ]}
+        >
           <List size={22} color={theme.text} weight="bold" />
           <ThemedText style={[styles.categoryFabText, { color: theme.text }]}>Categories</ThemedText>
         </Pressable>
 
-        <Pressable style={({ pressed }) => [
-          styles.addFab, 
-          styles.shadowLarge,
-          { backgroundColor: theme.text, transform: [{ scale: pressed ? 0.95 : 1 }] }
-        ]}>
+        <Pressable 
+          onPress={() => setAddItemSheetVisible(true)}
+          style={({ pressed }) => [
+            styles.addFab, 
+            styles.shadowLarge,
+            { backgroundColor: theme.text, transform: [{ scale: pressed ? 0.95 : 1 }] }
+          ]}
+        >
           <Plus size={22} color={theme.background} weight="bold" />
           <ThemedText style={[styles.addFabText, { color: theme.background }]}>ADD ITEM</ThemedText>
         </Pressable>

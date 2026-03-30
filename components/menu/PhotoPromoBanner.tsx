@@ -10,10 +10,10 @@ export const PhotoPromoBanner = () => {
   const theme = Colors[colorScheme];
 
   return (
-    <View style={[styles.promoBanner, { backgroundColor: theme.surfaceSecondary, borderColor: theme.border }]}>
+    <View style={[styles.promoBanner, { backgroundColor: theme.primary + '15', borderColor: theme.primary + '30', borderWidth: 1 }]}>
       <View style={styles.promoContent}>
-        <ThemedText style={styles.promoTitle}>Menu-ready photos in seconds</ThemedText>
-        <ThemedText style={styles.promoSubtitle}>
+        <ThemedText style={[styles.promoTitle, { color: theme.text }]}>Menu-ready photos in seconds</ThemedText>
+        <ThemedText style={[styles.promoSubtitle, { color: theme.textSecondary }]}>
           Click a photo of a prepared dish and enhance while you add it to menu
         </ThemedText>
         <Pressable style={[styles.learnMoreBtn, { backgroundColor: theme.primary }]}>
@@ -49,13 +49,11 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   promoTitle: {
-    color: '#FFF',
     fontSize: 18,
     fontWeight: '800',
     marginBottom: 8,
   },
   promoSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 16,
@@ -70,7 +68,6 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   learnMoreText: {
-    color: '#FFF',
     fontSize: 14,
     fontWeight: '700',
   },
