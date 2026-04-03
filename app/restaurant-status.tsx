@@ -20,8 +20,11 @@ import {
   Robot,
   UserCircle
 } from 'phosphor-react-native';
-import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { getRestaurantStatus } from '@/store/slices/restaurantSlice';
+import { getOwnerProfile } from '@/store/slices/profileSlice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function RestaurantStatusScreen() {
@@ -29,6 +32,10 @@ export default function RestaurantStatusScreen() {
   const theme = Colors[colorScheme];
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const dispatch = useAppDispatch();
+
+  const { status: restaurantStatus, loading: restaurantLoading } = useAppSelector((state) => state.restaurant);
+  const { ownerProfile, loading: profileLoading } = useAppSelector((state) => state.profile);
 
   // Main States
   const [isOnline, setIsOnline] = useState(true);
@@ -83,13 +90,17 @@ export default function RestaurantStatusScreen() {
             <UserCircle size={40} color={theme.primary} weight="bold" />
           </View>
           <View style={styles.profileInfo}>
-            <Text style={[styles.restaurantName, { color: theme.text, fontFamily: Fonts.poppins.bold }]}>Muggs Cafe</Text>
+            <Text style={[styles.restaurantName, { color: theme.text, fontFamily: Fonts.poppins.bold }]}>
+              {restaurantStatus?.name || ownerProfile?.name || 'My Restaurant'}
+            </Text>
             <View style={styles.idRow}>
               <Text style={[styles.restaurantIdLabel, { color: theme.textSecondary }]}>RESTAURANT ID:</Text>
-              <Text style={[styles.restaurantIdValue, { color: theme.text, fontFamily: Fonts.inter.semibold }]}> 20202954</Text>
+              <Text style={[styles.restaurantIdValue, { color: theme.text, fontFamily: Fonts.inter.semibold }]}> 
+                {restaurantStatus?.id?.slice(-8).toUpperCase() || 'PND-001'}
+              </Text>
             </View>
             <Text style={[styles.restaurantLocation, { color: theme.textSecondary }]} numberOfLines={1}>
-              Balotra Locality, Balotra
+              {restaurantStatus?.address || 'Location details pending'}
             </Text>
           </View>
         </View>

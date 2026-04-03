@@ -1,7 +1,15 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import api from '../../api/api';
-import { storage } from '../../api/api';
-import { AuthResponse, KycDetails, KycStatus } from '../../api/types';
+import api, { storage, getPersistentDeviceId } from '../../api/api';
+import { AuthResponse, KycStatus } from '../../api/types';
+
+// Matching keys from api.ts
+const AUTH_KEYS = {
+  ACCESS_TOKEN: 'fudode_access_token',
+  REFRESH_TOKEN: 'fudode_refresh_token',
+  USER_ID: 'fudode_user_id',
+  DEVICE_ID: 'fudode_device_id',
+  KYC_STATUS: 'fudode_kyc_status'
+};
 
 interface AuthState {
   user: { userId: string } | null;
@@ -11,7 +19,7 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
-  kycStatus: KycStatus;
+  kycStatus?: KycStatus;
 }
 
 const initialState: AuthState = {
@@ -22,7 +30,6 @@ const initialState: AuthState = {
   loading: false,
   error: null,
   isAuthenticated: false,
-  kycStatus: KycStatus.PENDING,
 };
 
 export const requestOtp = createAsyncThunk(
@@ -46,13 +53,15 @@ export const verifyOtp = createAsyncThunk(
     try {
       const response = await api.post('/auth/verify', payload);
       const data: AuthResponse = response.data;
+
+      // Persist using SecureStore (wrapped in storage)
+      await storage.setItem(AUTH_KEYS.ACCESS_TOKEN, data.accessToken);
+      await storage.setItem(AUTH_KEYS.REFRESH_TOKEN, data.refreshToken);
+      await storage.setItem(AUTH_KEYS.USER_ID, data.userId);
+      await storage.setItem(AUTH_KEYS.DEVICE_ID, payload.deviceId);
       
-      await storage.setItem('accessToken', data.accessToken);
-      await storage.setItem('refreshToken', data.refreshToken);
-      await storage.setItem('userId', data.userId);
-      await storage.setItem('deviceId', payload.deviceId);
       if (data.kycStatus) {
-        await storage.setItem('kycStatus', data.kycStatus);
+        await storage.setItem(AUTH_KEYS.KYC_STATUS, data.kycStatus);
       }
 
       return data;
@@ -61,55 +70,45 @@ export const verifyOtp = createAsyncThunk(
     }
   }
 );
-
-export const updateScope = createAsyncThunk(
-  'auth/updateScope',
-  async (payload: { restaurantId: string; deviceId: string; refreshToken: string }, { rejectWithValue }) => {
+export const updateRestaurantToken = createAsyncThunk(
+  'auth/updateRestaurantToken',
+  async (
+    payload: { refreshToken: string; deviceId: string; restaurantId: string },
+    { rejectWithValue }
+  ) => {
     try {
-      console.log('[Auth] Updating scope to restaurant:', payload.restaurantId);
       const response = await api.post('/auth/update', payload);
-      const { accessToken } = response.data;
-      
-      await storage.setItem('accessToken', accessToken);
-      console.log('[Auth] Scope updated successfully.');
-      return accessToken;
-    } catch (error: any) {
-      console.error('[Auth] Scope Update Error:', error.response?.data || error.message);
-      return rejectWithValue(error.response?.data?.error || 'Failed to update scope');
-    }
-  }
-);
+      const { accessToken }: { accessToken: string } = response.data;
 
-export const submitKyc = createAsyncThunk(
-  'auth/submitKyc',
-  async (kycDetails: KycDetails, { rejectWithValue }) => {
-    try {
-      console.log('[KYC] Submitting Details:', kycDetails);
-      const response = await api.post('/kyc/onboard', kycDetails);
-      console.log('[KYC] Submission Successful:', response.data);
+      // Update local storage with the new scoped token
+      await storage.setItem(AUTH_KEYS.ACCESS_TOKEN, accessToken);
       
-      await storage.setItem('kycStatus', KycStatus.SUBMITTED);
-      return response.data;
+      return { accessToken };
     } catch (error: any) {
-      console.error('[KYC] Submission Error:', error.response?.data || error.message);
-      return rejectWithValue(error.response?.data?.error || 'Failed to submit KYC');
+      return rejectWithValue(error.response?.data?.error || 'Handshake failed');
     }
   }
 );
 
 export const initializeAuth = createAsyncThunk(
   'auth/initializeAuth',
-  async (_, { rejectWithValue }): Promise<{ userId: string; accessToken: string; refreshToken: string; deviceId: string; kycStatus: KycStatus } | null> => {
+  async (_, { rejectWithValue }): Promise<{ userId: string; accessToken: string; refreshToken: string; deviceId: string; kycStatus?: KycStatus } | null> => {
     try {
-      const accessToken = await storage.getItem('accessToken');
-      const refreshToken = await storage.getItem('refreshToken');
-      const userId = await storage.getItem('userId');
-      const deviceId = await storage.getItem('deviceId');
-      const kycStatus = (await storage.getItem('kycStatus') as KycStatus) || KycStatus.PENDING;
+      const accessToken = await storage.getItem(AUTH_KEYS.ACCESS_TOKEN);
+      const refreshToken = await storage.getItem(AUTH_KEYS.REFRESH_TOKEN);
+      const userId = await storage.getItem(AUTH_KEYS.USER_ID);
+      const deviceId = await storage.getItem(AUTH_KEYS.DEVICE_ID);
+      const kycStatus = (await storage.getItem(AUTH_KEYS.KYC_STATUS) as KycStatus) || undefined;
 
       if (accessToken && userId && refreshToken && deviceId) {
         return { userId, accessToken, refreshToken, deviceId, kycStatus };
       }
+      
+      // If we have nothing, still try to get/set a deviceId for tracking
+      if (!deviceId) {
+        await getPersistentDeviceId();
+      }
+      
       return null;
     } catch (error) {
       return null;
@@ -121,12 +120,16 @@ export const logout = createAsyncThunk(
   'auth/logout',
   async (_, { rejectWithValue }) => {
     try {
-      const deviceId = await storage.getItem('deviceId');
-      await api.post('/auth/logout', { deviceId });
+      const deviceId = await storage.getItem(AUTH_KEYS.DEVICE_ID);
+      if (deviceId) {
+          await api.post('/auth/logout', { deviceId });
+      }
+
+      await storage.removeItem(AUTH_KEYS.ACCESS_TOKEN);
+      await storage.removeItem(AUTH_KEYS.REFRESH_TOKEN);
+      await storage.removeItem(AUTH_KEYS.USER_ID);
+      // We keep the DEVICE_ID for future tracking
       
-      await storage.removeItem('accessToken');
-      await storage.removeItem('refreshToken');
-      await storage.removeItem('userId');
       return null;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.error || 'Failed to logout');
@@ -138,7 +141,7 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setAuth: (state, action: PayloadAction<{ userId: string; accessToken: string; refreshToken?: string; deviceId?: string; kycStatus: KycStatus }>) => {
+    setAuth: (state, action: PayloadAction<{ userId: string; accessToken: string; refreshToken?: string; deviceId?: string; kycStatus?: KycStatus }>) => {
       state.user = { userId: action.payload.userId };
       state.accessToken = action.payload.accessToken;
       if (action.payload.refreshToken) state.refreshToken = action.payload.refreshToken;
@@ -156,12 +159,13 @@ const authSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(requestOtp.fulfilled, (state) => {
+      .addCase(requestOtp.fulfilled, (state, action: PayloadAction<{ userId: string }>) => {
         state.loading = false;
+        state.user = { userId: action.payload.userId };
       })
-      .addCase(requestOtp.rejected, (state, action) => {
+      .addCase(requestOtp.rejected, (state, action: PayloadAction<any>) => {
         state.loading = false;
-        state.error = action.payload as string;
+        state.error = (action.payload as string) || 'Failed to request OTP';
       })
       .addCase(verifyOtp.pending, (state) => {
         state.loading = true;
@@ -169,40 +173,23 @@ const authSlice = createSlice({
       })
       .addCase(verifyOtp.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = { userId: action.payload.userId };
+        if (action.payload.userId) {
+          state.user = { userId: action.payload.userId };
+        }
         state.accessToken = action.payload.accessToken;
         state.refreshToken = action.payload.refreshToken;
         state.deviceId = action.meta.arg.deviceId;
         state.isAuthenticated = true;
-        state.kycStatus = (action.payload.kycStatus as KycStatus) || KycStatus.PENDING;
+        state.kycStatus = (action.payload.kycStatus as KycStatus) || undefined;
       })
       .addCase(verifyOtp.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      .addCase(submitKyc.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(submitKyc.fulfilled, (state, action) => {
-        state.loading = false;
-        state.kycStatus = KycStatus.SUBMITTED;
-      })
-      .addCase(submitKyc.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-      .addCase(updateScope.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(updateScope.fulfilled, (state, action) => {
-        state.loading = false;
-        state.accessToken = action.payload;
-      })
-      .addCase(updateScope.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
+      .addCase(updateRestaurantToken.fulfilled, (state, action) => {
+        state.accessToken = action.payload.accessToken;
+        // The token is now restaurant-scoped
+        console.log('🔄 [Auth] Handshake successful. Token updated to restaurant-scoped.');
       })
       .addCase(initializeAuth.pending, (state) => {
         state.loading = true;
@@ -224,7 +211,8 @@ const authSlice = createSlice({
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
         state.accessToken = null;
-        state.kycStatus = KycStatus.PENDING;
+        state.refreshToken = null;
+        state.kycStatus = undefined;
         state.isAuthenticated = false;
       });
   },
@@ -232,3 +220,4 @@ const authSlice = createSlice({
 
 export const { setAuth, clearError } = authSlice.actions;
 export default authSlice.reducer;
+

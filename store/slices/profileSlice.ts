@@ -1,113 +1,82 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import api from '../../api/api';
-import { MyRestaurant, OwnerProfile } from '../../api/types';
+import { OwnerProfile, OnboardingStep1 } from '../../api/types';
+
 
 interface ProfileState {
-  restaurants: MyRestaurant[];
   ownerProfile: OwnerProfile | null;
   loading: boolean;
   error: string | null;
 }
 
 const initialState: ProfileState = {
-  restaurants: [],
   ownerProfile: null,
   loading: false,
   error: null,
 };
-
-export const getMyRestaurants = createAsyncThunk(
-  'profile/getMyRestaurants',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await api.get('/get/my');
-      return response.data;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Failed to fetch restaurants');
-    }
-  }
-);
 
 export const getOwnerProfile = createAsyncThunk(
   'profile/getOwnerProfile',
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get('/profile/get');
-      return response.data;
+      // The guide response is { status: true, phone: "...", profileData: { ... } }
+      return response.data.profileData;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.error || 'Failed to fetch owner profile');
     }
   }
 );
 
-export const setOwnerProfile = createAsyncThunk(
-  'profile/setOwnerProfile',
-  async (formData: FormData, { rejectWithValue }) => {
+export const setProfileStep1 = createAsyncThunk(
+  'profile/setStep1',
+  async (details: OnboardingStep1, { rejectWithValue }) => {
     try {
-      const response = await api.post('/profile/set', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.put('/profile', details);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Failed to set owner profile');
+      return rejectWithValue(error.response?.data?.error || 'Failed to set restaurant profile');
     }
   }
 );
 
-export const kycOnboard = createAsyncThunk(
-  'profile/kycOnboard',
-  async (payload: any, { rejectWithValue }) => {
-    try {
-      const response = await api.post('/kyc/onboard', payload);
-      return response.data;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Failed to submit KYC');
-    }
-  }
-);
 
 const profileSlice = createSlice({
   name: 'profile',
   initialState,
-  reducers: {},
+  reducers: {
+    clearProfileError: (state) => {
+      state.error = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
-      .addCase(getMyRestaurants.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(getMyRestaurants.fulfilled, (state, action) => {
-        state.loading = false;
-        state.restaurants = action.payload.data;
-      })
-      .addCase(getMyRestaurants.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
       .addCase(getOwnerProfile.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(getOwnerProfile.fulfilled, (state, action) => {
         state.loading = false;
-        state.ownerProfile = action.payload.data;
+        state.ownerProfile = action.payload;
       })
       .addCase(getOwnerProfile.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      .addCase(setOwnerProfile.pending, (state) => {
+      .addCase(setProfileStep1.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
-      .addCase(setOwnerProfile.fulfilled, (state, action) => {
+      .addCase(setProfileStep1.fulfilled, (state) => {
         state.loading = false;
-        state.ownerProfile = action.payload.data;
       })
-      .addCase(setOwnerProfile.rejected, (state, action) => {
+      .addCase(setProfileStep1.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });
+
   },
 });
 
+export const { clearProfileError } = profileSlice.actions;
 export default profileSlice.reducer;

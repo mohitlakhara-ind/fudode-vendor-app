@@ -1,7 +1,13 @@
 export interface ApiResponse<T> {
   status: boolean;
-  message: string;
+  message?: string;
   data: T;
+}
+
+export interface ProfileResponse {
+  status: boolean;
+  phone: string;
+  profileData: OwnerProfile;
 }
 
 export enum KycStatus {
@@ -15,26 +21,64 @@ export interface AuthResponse {
   userId: string;
   accessToken: string;
   refreshToken: string;
-  kycStatus: KycStatus;
+  kycStatus?: KycStatus;
   message?: string;
 }
 
-export interface KycDetails {
+export interface OwnerProfileDetails {
   name: string;
+  email: string;
+  alternateNo: string;
+  aadhaarNo: string;
+}
+
+export interface OnboardingStep1 {
+  name: string;
+  alternateNo: string;
+  lat: number;
+  long: number;
+  area: string;
+  city: string;
+  shopno: string;
+  tower: string; // Mapped to 'floor' in UI
+  landMark: string;
+}
+
+export interface OnboardingStep2 {
   legalName: string;
-  description?: string;
   fssai: string;
-  docType: 'PAN_CARD' | 'GST';
-  docNumber: string;
-  addressDocType: 'SHOP_ACT' | 'MSME_REGISTRATION';
-  addressDocNumber: string;
+  PanNo: string;
+  Gstin: string;
   paymentMethod: 'BANK_TRANSFER' | 'UPI';
-  // If BANK_TRANSFER:
+  holderName?: string;
   bankName?: string;
   accountNo?: string;
   ifscCode?: string;
-  // If UPI:
   upiId?: string;
+}
+
+export interface OnboardingStep3 {
+  contractAccepted: boolean;
+  contractId: string;
+  contractVersion: number;
+}
+
+export enum OnboardingStatus {
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  VERIFIED = 'VERIFIED',
+  REJECTED = 'REJECTED',
+}
+
+export interface RestaurantStatus {
+  id?: string;
+  name?: string;
+  address?: string;
+  onboardingStep: number;
+  onboardingStatus: OnboardingStatus;
+  profileData?: {
+    isOwnerProfileComplete: boolean;
+  };
 }
 
 export interface Restaurant {
@@ -51,38 +95,34 @@ export interface MyRestaurant {
 
 export enum OwnerProfileStatus {
   PENDING = 'PENDING',
-  COMPLETED = 'COMPLETED',
+  VERIFIED = 'VERIFIED',
 }
 
 export interface OwnerProfile {
   name: string;
   email: string;
-  alternateNo: string;
-  aadhaarNo: string;
-  avatar?: string;
-  aadhaarFront?: string;
-  aadhaarBack?: string;
-  status: OwnerProfileStatus;
+  phone: string;
+  avatarUrl?: string;
+  verificationStatus: OwnerProfileStatus;
 }
 
 export interface Category {
   id: string;
   name: string;
   parentCategoryId?: string;
+  order?: number;
+  items?: MenuItem[];
 }
 
 export interface MenuItem {
   id: string;
   categoryId: string;
   name: string;
-  description: string;
+  description?: string;
   foodType: 'VEG' | 'NON_VEG' | 'EGG';
-  prepTime: number;
-  imageUrl: string;
   variants: MenuVariant[];
-  tags: string[];
-  addonGroupIds: string[];
-  status: 'AVAILABLE' | 'SOLD_OUT' | 'HIDDEN';
+  status: 'AVAILABLE' | 'SOLD_OUT';
+  order?: number;
 }
 
 export interface MenuVariant {

@@ -11,9 +11,11 @@ import { ThemeProvider, useAppTheme } from '@/contexts/ThemeContext';
 import { Colors } from '@/constants/theme';
 import { store, AppDispatch, RootState } from '@/store/store';
 import { initializeAuth } from '@/store/slices/authSlice';
+import { getRestaurantStatus } from '@/store/slices/restaurantSlice';
+import { getOwnerProfile } from '@/store/slices/profileSlice';
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  initialRouteName: '(auth)/login',
 };
 
 import { 
@@ -58,27 +60,86 @@ function AppNavigator() {
     Inter_700Bold,
   });
 
+  const { status: restaurantStatus, loading: restaurantLoading } = useSelector((state: RootState) => state.restaurant);
+
   useEffect(() => {
     if (poppinsLoaded && interLoaded) {
       dispatch(initializeAuth());
       setIsReady(true);
-      SplashScreen.hideAsync();
     }
   }, [dispatch, poppinsLoaded, interLoaded]);
 
   useEffect(() => {
-    if (!isReady || loading) return;
-
-    if (!segments || segments.length < 1) return;
-
-    const inAuthGroup = segments[0] === '(auth)';
-    const isOnboardingGroup = segments[1] === 'onboarding' || segments[1] === 'owner-profile' || segments[1] === 'kyc';
-
-    if (isAuthenticated && !isOnboardingGroup && !inAuthGroup && kycStatus === 'PENDING') {
-      // If we're authenticated but somehow ended up in tabs/etc without KYC/Onboarding
-      router.replace('/(auth)/onboarding');
+    if (isAuthenticated) {
+      dispatch(getRestaurantStatus());
+      dispatch(getOwnerProfile());
     }
-  }, [isAuthenticated, kycStatus, segments, loading, isReady, router]);
+  }, [isAuthenticated, dispatch]);
+
+  useEffect(() => {
+    if (!isReady) return;
+
+    const inAuthGroup = (segments as any).includes('(auth)');
+    const currentPath = segments.join('/');
+    console.log('[AppNavigator] State:', { currentPath, segments, isAuthenticated, restaurantStatus: restaurantStatus?.onboardingStatus, loading, isReady });
+
+    if (!isAuthenticated) {
+      if (!currentPath.includes('login') && !currentPath.includes('verify')) {
+        console.log('[AppNavigator] Redirecting to login');
+        router.replace('/(auth)/login');
+      }
+    } else {
+      // 1. Wait if we're in the middle of fetching the status
+      if (restaurantLoading) {
+        console.log('[AppNavigator] Waiting for restaurant status...');
+        return;
+      }
+
+      // 2. Decide based on status
+      if (!restaurantStatus) {
+        console.log('[AppNavigator] Waiting for restaurant status...');
+        return;
+      }
+
+      // 3. Status exists, follow the steps
+      const isVerified = restaurantStatus.onboardingStatus === 'VERIFIED' || restaurantStatus.onboardingStatus === 'COMPLETED';
+      const isOwnerComplete = restaurantStatus.profileData?.isOwnerProfileComplete;
+
+      const inOnboardingGroup = 
+        currentPath.includes('onboarding') || 
+        currentPath.includes('owner-profile') || 
+        currentPath.includes('store-profile') ||
+        currentPath.includes('kyc') || 
+        currentPath.includes('contract');
+
+      // PHASE 2 CHECK: Owner Identity
+      if (!isOwnerComplete) {
+        if (currentPath !== '(auth)/owner-profile') {
+          console.log('[AppNavigator] Owner profile incomplete, forcing Phase 2 Identity Verification');
+          router.replace('/(auth)/owner-profile');
+          return;
+        }
+      } 
+      // PHASE 3 CHECK: Restaurant Verification
+      else if (!isVerified) {
+        // If Phase 2 is complete, we should be in Phase 3
+        // Allow onboarding screens, but redirect to hub if we are still on Phase 2 screen
+        if (currentPath === '(auth)/owner-profile' || (!inOnboardingGroup && !currentPath.includes('(tabs)'))) {
+          console.log('[AppNavigator] Phase 2 complete, transitioning to Phase 3 Onboarding');
+          router.replace('/(auth)/onboarding');
+          return;
+        }
+      } 
+      // VERIFIED: Move to Tabs
+      else if (currentPath === '' || (segments as any).includes('(auth)')) {
+        console.log('[AppNavigator] Fully verified, redirecting to dashboard');
+        router.replace('/(tabs)');
+        return;
+      }
+    }
+    
+    SplashScreen.hideAsync();
+  }, [isAuthenticated, restaurantStatus, segments, loading, isReady, router, restaurantLoading]);
 
   const customDarkTheme = {
     ...DarkTheme,
@@ -120,8 +181,11 @@ function AppNavigator() {
         <Stack.Screen name="(auth)/verify" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="(auth)/onboarding" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="(auth)/owner-profile" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="(auth)/store-profile" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="(auth)/kyc" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="(auth)/contract" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Settings' }} />
+
         <Stack.Screen name="restaurant-status" options={{ headerShown: false, animation: 'slide_from_right' }} />
       </Stack>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />

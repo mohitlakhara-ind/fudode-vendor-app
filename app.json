@@ -11,18 +11,28 @@
     "jsEngine": "hermes",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fudodeoffice.fudodevendorapp"
+      "bundleIdentifier": "com.fudodeoffice.fudodevendorapp",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Fudode needs location access to pinpoint your store on the map.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Fudode needs location access to pinpoint your store on the map.",
+        "NSLocationAlwaysUsageDescription": "Fudode needs location access to pinpoint your store on the map.",
+        "NSPhotoLibraryUsageDescription": "Fudode needs access to your photo library for uploading KYC documents."
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyBGAVQXKTGQkoMhM8zCMf6vPhSYZyDbFJw"
+      }
     },
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.fudodeoffice.fudodevendorapp"
+      "package": "com.fudodeoffice.fudodevendorapp",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBGAVQXKTGQkoMhM8zCMf6vPhSYZyDbFJw"
+        }
+      }
     },
     "web": {
       "output": "static",
@@ -49,6 +59,13 @@
           "dark": {
             "backgroundColor": "#000000"
           }
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Fudode needs location access to pinpoint your store on the map.",
+          "locationWhenInUsePermission": "Fudode needs location access to pinpoint your store on the map."
         }
       ]
     ],

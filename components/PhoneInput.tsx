@@ -71,7 +71,7 @@ PhoneInput.displayName = 'PhoneInput';
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   label: {
     fontSize: 14,
@@ -84,11 +84,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1.5,
     borderRadius: 16,
-    height: 60,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
+    height: 52,
   },
   countryCodeContainer: {
     flexDirection: 'row',
@@ -96,8 +92,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   countryCode: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
   },
   separator: {
     width: 1.5,
@@ -106,8 +102,8 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
     paddingRight: 16,
   },
   errorText: {

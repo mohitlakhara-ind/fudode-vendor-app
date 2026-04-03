@@ -9,6 +9,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Image,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
@@ -16,9 +17,12 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { Colors, Typography } from '@/constants/theme';
 import { CaretLeft } from 'phosphor-react-native';
 import { PhoneInput } from '@/components/PhoneInput';
-import { PrimaryButton } from '@/components/PrimaryButton';
-import { Svg, Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from 'react-native-svg';
+import { MeshGradient } from '@/components/ui/MeshGradient';
+import { PremiumButton } from '@/components/ui/PremiumButton';
 import { requestOtp } from '@/store/slices/authSlice';
+
+const { width } = Dimensions.get('window');
+
 export default function LoginScreen() {
   const router = useRouter();
   const { colorScheme } = useAppTheme();
@@ -53,6 +57,8 @@ export default function LoginScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <MeshGradient />
+        
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
@@ -62,64 +68,66 @@ export default function LoginScreen() {
               style={[
                 styles.backButton, 
                 { 
-                  borderColor: theme.border,
-                  backgroundColor: theme.surfaceSecondary
+                  borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.8)'
                 }
               ]} 
               onPress={() => router.back()}
             >
-              <CaretLeft size={24} color={theme.text} />
+              <CaretLeft size={24} color={theme.text} weight="bold" />
             </TouchableOpacity>
 
             <View style={styles.header}>
               <View style={styles.logoWrapper}>
-                <View style={styles.logoContainer}>
-                  <Svg height="100%" width="100%" style={StyleSheet.absoluteFill}>
-                    <Defs>
-                      <SvgLinearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
-                        <Stop offset="0" stopColor={theme.primary} />
-                        <Stop offset="1" stopColor={theme.primaryDark || theme.primary} />
-                      </SvgLinearGradient>
-                    </Defs>
-                    <Rect x="0" y="0" width="100%" height="100%" fill="url(#logoGrad)" />
-                  </Svg>
-                  <Image
-                    source={{ uri: 'https://cdn.fudode.in/public/Logo.png' }}
-                    style={[styles.logo, { tintColor: theme.background }]}
-                    resizeMode="contain"
-                  />
-                </View>
+                <Image
+                  source={{ uri: 'https://cdn.fudode.in/public/Logo.png' }}
+                  style={[styles.logo, { tintColor: theme.primary }]}
+                  resizeMode="contain"
+                />
               </View>
-              <Text style={[styles.title, { color: theme.text }]}>Welcome Partner</Text>
-              <Text style={[styles.subtitle, { color: theme.icon }]}>
-                Enter your mobile number to get started
+              
+              <View style={styles.titleContainer}>
+                <Text style={[styles.title, { color: theme.text }]}>Welcome Partner</Text>
+                <View style={[styles.titleUnderline, { backgroundColor: theme.primary }]} />
+              </View>
+              
+              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+                Empowering your business with every delivery.
               </Text>
             </View>
 
             <View style={styles.formContainer}>
-              <PhoneInput
-                label="Phone Number"
-                placeholder="10-digit mobile number"
-                value={phoneNumber}
-                onChangeText={(val) => {
-                  setPhoneNumber(val.replace(/\D/g, ''));
-                  if (phoneError) setPhoneError('');
-                }}
-                error={phoneError || (error as string)}
-                onSubmitEditing={handleContinue}
-                autoFocus
-              />
+              <View style={styles.inputWrapper}>
+                <PhoneInput
+                  label="Phone Number"
+                  placeholder="Enter 10-digit mobile number"
+                  value={phoneNumber}
+                  onChangeText={(val) => {
+                    setPhoneNumber(val.replace(/\D/g, ''));
+                    if (phoneError) setPhoneError('');
+                  }}
+                  error={phoneError || (error as string)}
+                  onSubmitEditing={handleContinue}
+                  autoFocus
+                />
+              </View>
 
-              <PrimaryButton
-                title={loading ? 'Sending OTP...' : 'Get OTP'}
+              <PremiumButton
+                label={loading ? 'Verifying...' : 'Get OTP'}
                 onPress={handleContinue}
-                loading={loading}
+                isLoading={loading}
                 disabled={phoneNumber.length !== 10}
+                variant="primary"
+                size="large"
+                isPulsing={phoneNumber.length === 10 && !loading}
               />
 
               <View style={styles.footer}>
-                <Text style={[styles.footerText, { color: theme.icon }]}>
-                  By proceeding, you agree to our Terms of Service and Privacy Policy.
+                <Text style={[styles.footerText, { color: theme.textSecondary }]}>
+                  By proceeding, you agree to our{' '}
+                  <Text style={{ color: theme.primary, fontWeight: '600' }}>Terms of Service</Text>
+                  {' '}and{' '}
+                  <Text style={{ color: theme.primary, fontWeight: '600' }}>Privacy Policy</Text>.
                 </Text>
               </View>
             </View>
@@ -140,60 +148,70 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 24,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
     borderWidth: 1,
-    borderStyle: 'solid',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 48,
   },
   logoWrapper: {
-    marginBottom: 24,
-    borderRadius: 24,
-    overflow: 'hidden',
-  },
-  logoContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 24,
-    alignItems: 'center',
+    width: width * 0.6,
+    height: 80,
     justifyContent: 'center',
-    padding: 20,
+    alignItems: 'center',
+    marginBottom: 32,
   },
   logo: {
     width: '100%',
     height: '100%',
   },
+  titleContainer: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   title: {
-    ...Typography.H1,
-    fontSize: 28, // Maintaining impact for login
+    ...Typography.Display,
+    fontSize: 32,
     textAlign: 'center',
-    letterSpacing: -0.5,
+    letterSpacing: -1,
+  },
+  titleUnderline: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 4,
   },
   subtitle: {
     ...Typography.BodyLarge,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 12,
+    paddingHorizontal: 20,
+    opacity: 0.8,
   },
   formContainer: {
     width: '100%',
+    paddingTop: 20,
+  },
+  inputWrapper: {
+    marginBottom: 24,
   },
   footer: {
-    marginTop: 32,
+    marginTop: 40,
     alignItems: 'center',
   },
   footerText: {
     ...Typography.Caption,
     textAlign: 'center',
-    paddingHorizontal: 20,
+    lineHeight: 20,
+    paddingHorizontal: 30,
   },
 });

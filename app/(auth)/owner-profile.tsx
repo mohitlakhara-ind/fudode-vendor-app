@@ -1,23 +1,24 @@
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Colors } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { setOwnerProfile } from '@/store/slices/profileSlice';
+import { submitOwnerProfile, getRestaurantStatus } from '@/store/slices/restaurantSlice';
 import { AppDispatch, RootState } from '@/store/store';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import {
-  Camera,
   CaretLeft,
-  CheckCircle,
+  User,
   Envelope,
   IdentificationCard,
-  Phone,
   PlusCircle,
-  User
+  Camera,
+  CheckCircle,
+  Phone
 } from 'phosphor-react-native';
 import React, { useState } from 'react';
 import {
   Alert,
-  Dimensions,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -26,13 +27,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  ActivityIndicator
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-
-// Calculate width for the side-by-side Aadhaar cards
-const { width } = Dimensions.get('window');
-const AADHAAR_CARD_WIDTH = (width - 40 - 16) / 2; // (TotalWidth - Padding - Gap) / 2
 
 const FormInput = ({ value, onChangeText, placeholder, keyboardType = 'default', error, icon: Icon }: any) => {
   const { colorScheme } = useAppTheme();
@@ -49,7 +47,7 @@ const FormInput = ({ value, onChangeText, placeholder, keyboardType = 'default',
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={theme.icon + '80'} // Reduced opacity for placeholder
+          placeholderTextColor={theme.icon + '80'}
           keyboardType={keyboardType}
         />
       </View>
@@ -58,48 +56,13 @@ const FormInput = ({ value, onChangeText, placeholder, keyboardType = 'default',
   );
 };
 
-const FilePickerTile = ({ label, value, onPick, icon: Icon }: any) => {
-  const { colorScheme } = useAppTheme();
-  const theme = Colors[colorScheme];
-  const isDark = colorScheme === 'dark';
-
-  return (
-    <TouchableOpacity
-      style={[
-        styles.fileCardSmall,
-        {
-          backgroundColor: theme.surfaceSecondary,
-          borderColor: theme.border,
-          width: AADHAAR_CARD_WIDTH
-        }
-      ]}
-      onPress={onPick}
-      activeOpacity={0.7}
-    >
-      <View style={[styles.tileIconWrapper, { backgroundColor: value ? theme.success + '20' : theme.primary + '15' }]}>
-        <Icon size={24} color={value ? theme.success : theme.primary} weight="bold" />
-      </View>
-      <View style={styles.tileInfo}>
-        <Text style={[styles.tileLabel, { color: theme.text }]} numberOfLines={1}>{label}</Text>
-        {value ? (
-          <CheckCircle size={20} color={theme.success} weight="fill" />
-        ) : (
-          <PlusCircle size={20} color={theme.icon} />
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-};
-
-export default function OwnerProfileScreen() {
+export default function OwnerIdentityScreen() {
   const router = useRouter();
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
-  const isDark = colorScheme === 'dark';
   const dispatch = useDispatch<AppDispatch>();
-  const { loading, error } = useSelector((state: RootState) => state.profile);
+  const { loading, error } = useSelector((state: RootState) => state.restaurant);
 
-  // Form State
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -107,28 +70,87 @@ export default function OwnerProfileScreen() {
     aadhaarNo: '',
   });
 
-  // Basic Validation State
+  const [images, setImages] = useState<any>({
+    avatar: null,
+    aadhaarFront: null,
+    aadhaarBack: null,
+  });
+
   const [errors, setErrors] = useState<any>({});
+
+  const pickImage = async (key: string) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      setImages((prev: any) => ({ ...prev, [key]: result.assets[0].uri }));
+    }
+  };
 
   const validate = () => {
     const newErrors: any = {};
-    if (!form.name) newErrors.name = 'Name is required';
+    if (!form.name) newErrors.name = 'Full Name is required';
     if (!form.email || !form.email.includes('@')) newErrors.email = 'Valid email is required';
-    if (!form.aadhaarNo || form.aadhaarNo.length !== 12) newErrors.aadhaarNo = '12-digit Aadhaar required';
+    if (!form.alternateNo || form.alternateNo.length !== 10) newErrors.alternateNo = 'Valid 10-digit number is required';
+    if (!form.aadhaarNo || form.aadhaarNo.length !== 12) newErrors.aadhaarNo = 'Valid 12-digit Aadhaar is required';
+    
+    if (!images.avatar || !images.aadhaarFront || !images.aadhaarBack) {
+       Alert.alert('Images Required', 'Please upload your profile picture, and both front and back of your Aadhaar card.');
+       return false;
+    }
 
+    console.log('📝 [Validation] Errors:', newErrors);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
-    if (!validate()) return;
+    console.log('🚀 [handleSubmit] Form State:', form);
+    console.log('📸 [handleSubmit] Image State:', images);
+    if (!validate()) {
+      console.log('❌ [handleSubmit] Validation failed');
+      return;
+    }
+    console.log('✅ [handleSubmit] Validation passed, preparing FormData');
 
     const formData = new FormData();
-    Object.entries(form).forEach(([key, value]) => formData.append(key, value));
+    formData.append('name', form.name);
+    formData.append('email', form.email);
+    formData.append('alternateNo', form.alternateNo);
+    formData.append('aadhaarNo', form.aadhaarNo);
 
-    const result = await dispatch(setOwnerProfile(formData));
-    if (setOwnerProfile.fulfilled.match(result)) {
-      router.replace('/(auth)/kyc');
+    // Append images
+    if (images.avatar) {
+      formData.append('avatar', {
+        uri: images.avatar,
+        name: 'avatar.jpg',
+        type: 'image/jpeg',
+      } as any);
+    }
+    
+    formData.append('aadhaarFront', {
+      uri: images.aadhaarFront,
+      name: 'aadhaar_front.jpg',
+      type: 'image/jpeg',
+    } as any);
+
+    formData.append('aadhaarBack', {
+      uri: images.aadhaarBack,
+      name: 'aadhaar_back.jpg',
+      type: 'image/jpeg',
+    } as any);
+
+    const result = await dispatch(submitOwnerProfile(formData));
+    if (submitOwnerProfile.fulfilled.match(result)) {
+      // Small delay to allow the backend to process the update and invalidate its cache
+      console.log('⏳ [handleSubmit] Waiting 1.5s for backend catch-up...');
+      setTimeout(async () => {
+        await dispatch(getRestaurantStatus());
+        router.replace('/(auth)/onboarding');
+      }, 1500);
     }
   };
 
@@ -136,99 +158,119 @@ export default function OwnerProfileScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
-      {/* 1. Header with back button only */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={[
-            styles.backButton, 
-            { 
-              borderColor: theme.border,
-              backgroundColor: theme.surfaceSecondary
-            }
-          ]} 
-          onPress={() => router.back()}
-        >
-          <CaretLeft size={22} color={theme.text} weight="bold" />
-        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Owner Identity</Text>
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-
-          {/* 2. Profile Photo Circular Placeholder (Moved to center body) */}
-          <View style={styles.avatarContainer}>
-            <TouchableOpacity
-              style={[styles.avatarPlaceholder, { borderColor: theme.border, backgroundColor: theme.surface }]}
-              onPress={() => Alert.alert('Pick Image')}
-              activeOpacity={0.8}
-            >
-              <Camera size={40} color={theme.icon} weight="bold" />
-              <View style={[styles.addAvatarBtn, { backgroundColor: theme.primary, borderColor: theme.surface }]}>
-                <PlusCircle size={20} color={theme.background} weight="fill" />
+          
+          <View style={styles.avatarSection}>
+            <TouchableOpacity onPress={() => pickImage('avatar')} style={[styles.avatarWrapper, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary }]}>
+              {images.avatar ? (
+                <Image source={{ uri: images.avatar }} style={styles.avatar} />
+              ) : (
+                <User size={40} color={theme.icon} />
+              )}
+              <View style={[styles.avatarAdd, { backgroundColor: theme.primary }]}>
+                <PlusCircle size={20} color="#000" weight="fill" />
               </View>
             </TouchableOpacity>
+            <Text style={[styles.avatarLabel, { color: theme.text }]}>Upload Profile Picture</Text>
           </View>
 
-          {/* 3. Personal Input Section (Name -> Email -> Alt. Number) */}
+          <View style={styles.infoBox}>
+            <Text style={[styles.infoTitle, { color: theme.text }]}>Personal Details</Text>
+            <Text style={[styles.infoSubtitle, { color: theme.icon }]}>Phase 2: Verifying your identity as a partner</Text>
+          </View>
+
           <FormInput
             value={form.name}
             onChangeText={(val: string) => setForm({ ...form, name: val })}
-            placeholder="Name" // Placeholder text from image
+            placeholder="Full Name (As per Aadhaar)"
             icon={User}
             error={errors.name}
           />
+
           <FormInput
             value={form.email}
             onChangeText={(val: string) => setForm({ ...form, email: val })}
-            placeholder="Email" // Placeholder text from image
-            keyboardType="email-address"
+            placeholder="Email Address"
             icon={Envelope}
+            keyboardType="email-address"
             error={errors.email}
           />
+
           <FormInput
             value={form.alternateNo}
-            onChangeText={(val: string) => setForm({ ...form, alternateNo: val })}
-            placeholder="Alt. Number" // Placeholder text from image
-            keyboardType="phone-pad"
+            onChangeText={(val: string) => setForm({ ...form, alternateNo: val.replace(/\D/g, '') })}
+            placeholder="Alternate Mobile Number"
             icon={Phone}
+            keyboardType="numeric"
+            error={errors.alternateNo}
           />
 
-          {/* 4. Document Verification Section Label */}
-          <Text style={[styles.sectionHeaderLabel, { color: theme.text }]}>Document Verification</Text>
-
-          {/* 5. Aadhaar Number Input */}
           <FormInput
             value={form.aadhaarNo}
-            onChangeText={(val: string) => setForm({ ...form, aadhaarNo: val.replace(/\D/g, '').slice(0, 12) })}
-            placeholder="Aadhaar Number" // Spelling from image
-            keyboardType="number-pad"
+            onChangeText={(val: string) => setForm({ ...form, aadhaarNo: val.replace(/\D/g, '') })}
+            placeholder="12-Digit Aadhaar Number"
             icon={IdentificationCard}
+            keyboardType="numeric"
             error={errors.aadhaarNo}
           />
 
-          {/* 6. Side-by-Side Aadhaar Upload Tiles */}
-          <View style={styles.aadhaarTileRow}>
-            <FilePickerTile
-              label="Aadhaar Front" // Label spelling from image
-              icon={IdentificationCard}
-              onPick={() => { }}
-            />
-            <FilePickerTile
-              label="Aadhaar Back" // Label spelling from image
-              icon={IdentificationCard}
-              onPick={() => { }}
-            />
+          <View style={[styles.sectionDivider, { backgroundColor: theme.border }]} />
+          
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Aadhaar Card Verification</Text>
+          
+          <View style={styles.docGrid}>
+            <TouchableOpacity 
+              style={[styles.docPicker, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary }]} 
+              onPress={() => pickImage('aadhaarFront')}
+            >
+              {images.aadhaarFront ? (
+                <Image source={{ uri: images.aadhaarFront }} style={styles.docImage} />
+              ) : (
+                <>
+                  <Camera size={24} color={theme.icon} />
+                  <Text style={[styles.docLabel, { color: theme.icon }]}>Front Side</Text>
+                </>
+              )}
+              {images.aadhaarFront && (
+                <View style={styles.doneBadge}>
+                  <CheckCircle size={18} color={theme.success} weight="fill" />
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.docPicker, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary }]} 
+              onPress={() => pickImage('aadhaarBack')}
+            >
+              {images.aadhaarBack ? (
+                <Image source={{ uri: images.aadhaarBack }} style={styles.docImage} />
+              ) : (
+                <>
+                  <Camera size={24} color={theme.icon} />
+                  <Text style={[styles.docLabel, { color: theme.icon }]}>Back Side</Text>
+                </>
+              )}
+              {images.aadhaarBack && (
+                <View style={styles.doneBadge}>
+                  <CheckCircle size={18} color={theme.success} weight="fill" />
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
 
           {error && <Text style={[styles.globalError, { color: theme.error }]}>{error}</Text>}
 
-          {/* 7. Full Width Submit Button */}
           <View style={styles.footer}>
             <PrimaryButton
-              title={loading ? 'SAVING...' : 'Submit'} // Title text from image
+              title={loading ? 'SUBMITTING...' : 'Verify & Continue'}
               onPress={handleSubmit}
               loading={loading}
-              style={{ borderRadius: 18 }} // Matching image's rounded look
+              style={{ borderRadius: 18 }}
             />
           </View>
         </ScrollView>
@@ -240,121 +282,33 @@ export default function OwnerProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingTop: 60,
     paddingHorizontal: 20,
-    paddingBottom: 10,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    paddingTop: 10
-  },
-  avatarContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 1.5,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  addAvatarBtn: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    borderWidth: 1.5,
-    overflow: 'hidden',
-    height: 52,
-  },
-  inputIcon: {
-    paddingLeft: 16,
-  },
-  input: {
-    flex: 1,
-    height: '100%',
-    paddingHorizontal: 12,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  errorText: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 4,
-    marginLeft: 8,
-  },
-  sectionHeaderLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginTop: 16,
-    marginBottom: 16,
-    marginLeft: 2,
-  },
-  aadhaarTileRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-  },
-  fileCardSmall: {
-    padding: 12,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    marginBottom: 12,
-    justifyContent: 'center',
+    paddingBottom: 20,
     alignItems: 'center',
   },
-  tileIconWrapper: {
-    width: 50,
-    height: 50, // Square aesthetic for the icon part
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  tileInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  tileLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    flex: 1,
-    marginRight: 4,
-  },
-  globalError: {
-    textAlign: 'center',
-    marginVertical: 10,
-    fontWeight: '600',
-  },
-  footer: {
-    marginTop: 20,
-    paddingBottom: 10,
-  },
+  headerTitle: { fontSize: 24, fontWeight: '800' },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  avatarSection: { alignItems: 'center', marginBottom: 30 },
+  avatarWrapper: { width: 100, height: 100, borderRadius: 50, borderWidth: 2, justifyContent: 'center', alignItems: 'center', position: 'relative' },
+  avatar: { width: '100%', height: '100%', borderRadius: 50 },
+  avatarAdd: { position: 'absolute', bottom: 0, right: 0, borderRadius: 12, padding: 2 },
+  avatarLabel: { marginTop: 12, fontSize: 14, fontWeight: '700' },
+  infoBox: { marginBottom: 20 },
+  infoTitle: { fontSize: 18, fontWeight: '700' },
+  infoSubtitle: { fontSize: 13, marginTop: 4, fontWeight: '500' },
+  inputContainer: { marginBottom: 16 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', borderRadius: 16, borderWidth: 1.5, height: 52 },
+  inputIcon: { paddingLeft: 16 },
+  input: { flex: 1, paddingHorizontal: 12, fontSize: 15, fontWeight: '600' },
+  errorText: { fontSize: 11, fontWeight: '600', marginTop: 4, marginLeft: 8 },
+  sectionDivider: { height: 1, marginVertical: 24, opacity: 0.3 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 16 },
+  docGrid: { flexDirection: 'row', gap: 16, marginBottom: 20 },
+  docPicker: { flex: 1, height: 120, borderRadius: 16, borderWidth: 1.5, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', position: 'relative', overflow: 'hidden' },
+  docImage: { width: '100%', height: '100%' },
+  docLabel: { fontSize: 12, marginTop: 8, fontWeight: '600' },
+  doneBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: '#fff', borderRadius: 10 },
+  globalError: { textAlign: 'center', marginVertical: 10, fontWeight: '600' },
+  footer: { marginTop: 20 },
 });

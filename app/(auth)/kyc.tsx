@@ -1,438 +1,341 @@
-import React, { useState, useEffect } from 'react';
+import { OnboardingStep2 } from '@/api/types';
+import { JourneyProgress } from '@/components/ui/JourneyProgress';
+import { MeshGradient } from '@/components/ui/MeshGradient';
+import { PremiumInput } from '@/components/ui/PremiumInput';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { Colors, Typography } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { getRestaurantStatus, submitStep2 } from '@/store/slices/restaurantSlice';
+import { BlurView } from 'expo-blur';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
+  ArrowLeft,
+  ArrowRight,
+  At,
+  Bank,
+  Building,
+  CheckCircle,
+  CreditCard,
+  FileText,
+  Fingerprint,
+  IdentificationCard,
+  User,
+} from 'phosphor-react-native';
+import { useState } from 'react';
+import {
+  Alert,
+  Dimensions,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
-  Alert,
+  View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '@/store/store';
-import { submitKyc, updateScope } from '@/store/slices/authSlice';
-import { getMyRestaurants } from '@/store/slices/profileSlice';
-import { useAppTheme } from '@/contexts/ThemeContext';
-import { Colors } from '@/constants/theme';
-import { CaretLeft, CheckCircle, WarningCircle, Buildings, CreditCard, IdentificationCard, Storefront } from 'phosphor-react-native';
-import { PrimaryButton } from '@/components/PrimaryButton';
-import { KycDetails } from '@/api/types';
-import { TextInput } from 'react-native';
+import Animated, {
+  FadeInDown,
+  FadeInRight,
+  FadeOutLeft,
+  Layout
+} from 'react-native-reanimated';
 
-const FormInput = ({ label, value, onChangeText, placeholder, keyboardType = 'default', error, maxLength }: any) => {
-  const { colorScheme } = useAppTheme();
-  const theme = Colors[colorScheme];
-  
-  return (
-    <View style={styles.inputContainer}>
-      <Text style={[styles.label, { color: theme.icon }]}>{label}</Text>
-      <View style={[styles.inputWrapper, { backgroundColor: theme.surface, borderColor: error ? theme.error : theme.border }]}>
-        <TextInput
-          style={[styles.input, { color: theme.text }]}
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={theme.icon}
-          keyboardType={keyboardType}
-          maxLength={maxLength}
-        />
-      </View>
-      {error && <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>}
-    </View>
-  );
-};
-
-const SelectOption = ({ label, options, selectedValue, onSelect }: any) => {
-  const { colorScheme } = useAppTheme();
-  const theme = Colors[colorScheme];
-
-  return (
-    <View style={styles.inputContainer}>
-      <Text style={[styles.label, { color: theme.icon }]}>{label}</Text>
-      <View style={styles.optionsRow}>
-        {options.map((opt: any) => {
-          const isActive = selectedValue === opt.value;
-          const { colorScheme } = useAppTheme();
-          const isDark = colorScheme === 'dark';
-          
-          return (
-            <TouchableOpacity
-              key={opt.value}
-              style={[
-                styles.optionButton,
-                { 
-                  backgroundColor: isActive 
-                    ? theme.primary + '15' 
-                    : theme.surfaceSecondary,
-                  borderColor: isActive ? theme.primary : theme.border,
-                  borderWidth: isActive ? 2 : 1.5,
-                }
-              ]}
-              onPress={() => onSelect(opt.value)}
-            >
-              <Text style={{ 
-                color: isActive ? theme.primary : theme.text,
-                fontWeight: '700',
-                fontSize: 13
-              }}>
-                {opt.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </View>
-  );
-};
+const { width } = Dimensions.get('window');
 
 export default function KycScreen() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
   const isDark = colorScheme === 'dark';
-  const dispatch = useDispatch<AppDispatch>();
-  const { loading, error } = useSelector((state: RootState) => state.auth);
 
-  const [form, setForm] = useState<KycDetails>({
-    name: '',
+  const { loading, error: apiError } = useAppSelector((state) => state.restaurant);
+  const [currentPhase, setCurrentPhase] = useState(1);
+
+  // Form State aligned with OnboardingStep2
+  const [form, setForm] = useState<OnboardingStep2>({
     legalName: '',
-    description: '',
     fssai: '',
-    docType: 'PAN_CARD',
-    docNumber: '',
-    addressDocType: 'SHOP_ACT',
-    addressDocNumber: '',
+    PanNo: '',
+    Gstin: '',
     paymentMethod: 'BANK_TRANSFER',
+    holderName: '',
     bankName: '',
     accountNo: '',
     ifscCode: '',
     upiId: '',
   });
 
-  const [errors, setErrors] = useState<Partial<Record<keyof KycDetails, string>>>({});
-
-  useEffect(() => {
-    dispatch(getMyRestaurants());
-  }, []);
-
-  const handleChange = (key: keyof KycDetails, value: string) => {
+  const updateForm = (key: keyof OnboardingStep2, value: string) => {
     setForm(prev => ({ ...prev, [key]: value }));
-    if (errors[key]) {
-      setErrors(prev => ({ ...prev, [key]: undefined }));
-    }
   };
 
-  const validate = () => {
-    const newErrors: any = {};
-    if (!form.name) newErrors.name = 'Restaurant Name is required';
-    if (!form.legalName) newErrors.legalName = 'Legal Entity Name is required';
-    if (!form.fssai || form.fssai.length !== 14) newErrors.fssai = '14-digit FSSAI is required';
-    if (!form.docNumber) newErrors.docNumber = 'Document Number is required';
-    if (!form.addressDocNumber) newErrors.addressDocNumber = 'Address Doc Number is required';
-    
-    if (form.paymentMethod === 'BANK_TRANSFER') {
-      if (!form.bankName) newErrors.bankName = 'Bank Name is required';
-      if (!form.accountNo) newErrors.accountNo = 'Account Number is required';
-      if (!form.ifscCode) newErrors.ifscCode = 'IFSC Code is required';
-    } else {
-      if (!form.upiId) newErrors.upiId = 'UPI ID is required';
+  const validateRegex = (value: string, pattern: RegExp, fieldName: string) => {
+    if (!pattern.test(value)) {
+      Alert.alert('Invalid Format', `Please enter a valid ${fieldName}.`);
+      return false;
     }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return true;
   };
 
-  const handleSubmit = async () => {
-    if (!validate()) {
-      Alert.alert('Validation Error', 'Please fix the errors in the form.');
-      return;
-    }
-    
-    try {
-      const result = await dispatch(submitKyc(form));
-      if (submitKyc.fulfilled.match(result)) {
-        console.log('[KYC Screen] Submission successful');
-        Alert.alert(
-          'KYC Submitted',
-          'Your KYC details have been submitted successfully. We will review them shortly.',
-          [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
-        );
-      } else {
-        console.error('[KYC Screen] Submission failed:', result.payload);
+  const handleNext = async () => {
+    if (currentPhase === 1) {
+      if (!form.legalName || !form.fssai) {
+        Alert.alert('Required', 'Please enter legal name and FSSAI number.');
+        return;
       }
-    } catch (e) {
-      console.error('[KYC Screen] Exception during submission:', e);
+      if (!validateRegex(form.fssai, /^[0-9]{14}$/, '14-digit FSSAI Number')) return;
+      setCurrentPhase(2);
+    } else if (currentPhase === 2) {
+      if (!form.PanNo || !form.Gstin) {
+        Alert.alert('Required', 'Please enter both PAN and GSTIN numbers.');
+        return;
+      }
+      if (!validateRegex(form.PanNo, /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'PAN Number (ABCDE1234F)')) return;
+      if (!validateRegex(form.Gstin, /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/, 'GSTIN (e.g. 29ABCDE1234F1Z5)')) return;
+      setCurrentPhase(3);
+    } else {
+      // Final Submit for Step 2
+      if (form.paymentMethod === 'BANK_TRANSFER') {
+        if (!form.holderName || !form.bankName || !form.accountNo || !form.ifscCode) {
+          Alert.alert('Required', 'Please fill all bank details.');
+          return;
+        }
+        if (!validateRegex(form.ifscCode, /^[A-Z]{4}0[A-Z0-9]{6}$/, 'IFSC Code (e.g. HDFC0001234)')) return;
+      } else {
+        if (!form.upiId) {
+          Alert.alert('Required', 'Please enter your UPI ID.');
+          return;
+        }
+      }
+
+      const resultAction = await dispatch(submitStep2(form));
+      if (submitStep2.fulfilled.match(resultAction)) {
+        await dispatch(getRestaurantStatus());
+        router.replace('/(auth)/onboarding');
+      }
     }
   };
 
-  return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { backgroundColor: theme.background }]}
-    >
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={[
-            styles.backButton, 
-            { 
-              borderColor: theme.border,
-              backgroundColor: theme.surfaceSecondary
-            }
-          ]} 
-          onPress={() => router.back()}
-        >
-          <CaretLeft size={24} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.text }]}>KYC Onboarding</Text>
+  const handleBack = () => {
+    if (currentPhase > 1) {
+      setCurrentPhase(prev => prev - 1);
+    } else {
+      router.back();
+    }
+  };
+
+  const renderPhase1 = () => (
+    <Animated.View entering={FadeInRight} exiting={FadeOutLeft} style={styles.phaseContainer}>
+      <View style={styles.headerSection}>
+        <Building size={48} color={theme.primary} weight="duotone" />
+        <Text style={[styles.phaseTitle, { color: theme.text }]}>Identity & Business</Text>
+        <Text style={[styles.phaseSubtitle, { color: theme.icon }]}>
+          Enter your restaurant's legal entity and FSSAI details.
+        </Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <View style={styles.formGroup}>
+        <PremiumInput
+          label="Legal Entity Name"
+          placeholder="e.g. Grandma's Foods Pvt Ltd"
+          value={form.legalName}
+          onChangeText={(v) => updateForm('legalName', v)}
+          icon={IdentificationCard}
+        />
+        <PremiumInput
+          label="FSSAI License Number"
+          placeholder="14-digit FSSAI number"
+          value={form.fssai}
+          onChangeText={(v) => updateForm('fssai', v)}
+          icon={FileText}
+          keyboardType="numeric"
+        />
+      </View>
+    </Animated.View>
+  );
+
+  const renderPhase2 = () => (
+    <Animated.View entering={FadeInRight} exiting={FadeOutLeft} style={styles.phaseContainer}>
+      <View style={styles.headerSection}>
+        <Fingerprint size={48} color={theme.primary} weight="duotone" />
+        <Text style={[styles.phaseTitle, { color: theme.text }]}>Document Verification</Text>
+        <Text style={[styles.phaseSubtitle, { color: theme.icon }]}>
+          Enter your Permanent Account Number (PAN).
+        </Text>
+      </View>
+
+      <View style={styles.formGroup}>
+        <PremiumInput
+          label="PAN Number"
+          placeholder="ABCDE1234F"
+          value={form.PanNo}
+          onChangeText={(v) => updateForm('PanNo', v.toUpperCase())}
+          icon={FileText}
+          autoCapitalize="characters"
+        />
+        <PremiumInput
+          label="GSTIN Number"
+          placeholder="29ABCDE1234F1Z5"
+          value={form.Gstin}
+          onChangeText={(v) => updateForm('Gstin', v.toUpperCase())}
+          icon={FileText}
+          autoCapitalize="characters"
+        />
         <View style={[styles.infoBox, { backgroundColor: theme.surfaceSecondary }]}>
-          <WarningCircle size={20} color={theme.primary} />
-          <Text style={[styles.infoText, { color: theme.text }]}>
-            Submit your restaurant legal and payout details to get started.
+          <Text style={[styles.infoText, { color: theme.icon }]}>
+            Ensure the PAN name matches your legal entity name.
           </Text>
         </View>
+      </View>
+    </Animated.View>
+  );
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Storefront size={20} color={theme.primary} />
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Restaurant Basics</Text>
-          </View>
-          <FormInput
-            label="Restaurant Display Name"
-            value={form.name}
-            onChangeText={(val: string) => handleChange('name', val)}
-            placeholder="Pizza Palace"
-            error={errors.name}
-          />
-          <FormInput
-            label="Legal Entity Name"
-            value={form.legalName}
-            onChangeText={(val: string) => handleChange('legalName', val)}
-            placeholder="Pizza Palace Pvt Ltd"
-            error={errors.legalName}
-          />
-          <FormInput
-            label="FSSAI Number (14 digits)"
-            value={form.fssai}
-            onChangeText={(val: string) => handleChange('fssai', val.replace(/\D/g, '').slice(0, 14))}
-            placeholder="12345678901234"
-            keyboardType="number-pad"
-            maxLength={14}
-            error={errors.fssai}
-          />
-        </View>
+  const renderPhase3 = () => (
+    <Animated.View entering={FadeInRight} exiting={FadeOutLeft} style={styles.phaseContainer}>
+      <View style={styles.headerSection}>
+        <CreditCard size={48} color={theme.primary} weight="duotone" />
+        <Text style={[styles.phaseTitle, { color: theme.text }]}>Payout Settings</Text>
+        <Text style={[styles.phaseSubtitle, { color: theme.icon }]}>
+          Where should we send your settlements?
+        </Text>
+      </View>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <IdentificationCard size={20} color={theme.primary} />
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Identity Documents</Text>
-          </View>
-          <SelectOption
-            label="Primary Document Type"
-            options={[{ label: 'PAN Card', value: 'PAN_CARD' }, { label: 'GST', value: 'GST' }]}
-            selectedValue={form.docType}
-            onSelect={(val: string) => handleChange('docType', val)}
-          />
-          <FormInput
-            label={`${form.docType === 'PAN_CARD' ? 'PAN' : 'GST'} Number`}
-            value={form.docNumber}
-            onChangeText={(val: string) => handleChange('docNumber', val.toUpperCase())}
-            placeholder={form.docType === 'PAN_CARD' ? 'ABCDE1234F' : '29AAAAA0000A1Z5'}
-            error={errors.docNumber}
-          />
-          <SelectOption
-            label="Address Proof Type"
-            options={[{ label: 'Shop Act', value: 'SHOP_ACT' }, { label: 'MSME Reg.', value: 'MSME_REGISTRATION' }]}
-            selectedValue={form.addressDocType}
-            onSelect={(val: string) => handleChange('addressDocType', val)}
-          />
-          <FormInput
-            label="Address Proof Number"
-            value={form.addressDocNumber}
-            onChangeText={(val: string) => handleChange('addressDocNumber', val)}
-            placeholder="Registration Number"
-            error={errors.addressDocNumber}
-          />
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <CreditCard size={20} color={theme.primary} />
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Payout Details</Text>
-          </View>
-          <SelectOption
-            label="Payment Method"
-            options={[{ label: 'Bank Transfer', value: 'BANK_TRANSFER' }, { label: 'UPI', value: 'UPI' }]}
-            selectedValue={form.paymentMethod}
-            onSelect={(val: string) => handleChange('paymentMethod', val)}
-          />
-          
-          {form.paymentMethod === 'BANK_TRANSFER' ? (
-            <>
-              <FormInput
-                label="Bank Name"
-                value={form.bankName}
-                onChangeText={(val: string) => handleChange('bankName', val)}
-                placeholder="HDFC Bank"
-                error={errors.bankName}
-              />
-              <FormInput
-                label="Account Number"
-                value={form.accountNo}
-                onChangeText={(val: string) => handleChange('accountNo', val)}
-                placeholder="1234567890"
-                keyboardType="number-pad"
-                error={errors.accountNo}
-              />
-              <FormInput
-                label="IFSC Code"
-                value={form.ifscCode}
-                onChangeText={(val: string) => handleChange('ifscCode', val.toUpperCase())}
-                placeholder="HDFC0001234"
-                error={errors.ifscCode}
-                maxLength={11}
-              />
-            </>
-          ) : (
-            <FormInput
-              label="UPI ID"
-              value={form.upiId}
-              onChangeText={(val: string) => handleChange('upiId', val.toLowerCase())}
-              placeholder="name@bank"
-              error={errors.upiId}
-            />
-          )}
-        </View>
-
-        {error && (
-          <View style={[styles.errorBox, { backgroundColor: theme.error + '10' }]}>
-            <WarningCircle size={16} color={theme.error} />
-            <Text style={[styles.errorBoxText, { color: theme.error }]}>{error as string}</Text>
-          </View>
-        )}
-
-        <View style={styles.footer}>
+      <View style={styles.formGroup}>
+        <View style={styles.row}>
           <PrimaryButton
-            title={loading ? 'Submitting...' : 'Complete Onboarding'}
-            onPress={handleSubmit}
-            loading={loading}
+            title="Bank Transfer"
+            onPress={() => updateForm('paymentMethod', 'BANK_TRANSFER')}
+            variant={form.paymentMethod === 'BANK_TRANSFER' ? 'primary' : 'outline'}
+            style={styles.halfBtn}
+          />
+          <PrimaryButton
+            title="UPI ID"
+            onPress={() => updateForm('paymentMethod', 'UPI')}
+            variant={form.paymentMethod === 'UPI' ? 'primary' : 'outline'}
+            style={styles.halfBtn}
           />
         </View>
-      </ScrollView>
+
+        {form.paymentMethod === 'BANK_TRANSFER' ? (
+          <Animated.View entering={FadeInDown} layout={Layout} style={{ gap: 16 }}>
+            <PremiumInput
+              label="Account Holder Name"
+              placeholder="Name as per bank records"
+              value={form.holderName || ''}
+              onChangeText={(v) => updateForm('holderName', v)}
+              icon={User}
+            />
+            <PremiumInput
+              label="Bank Name"
+              placeholder="e.g. HDFC Bank"
+              value={form.bankName || ''}
+              onChangeText={(v) => updateForm('bankName', v)}
+              icon={Bank}
+            />
+            <PremiumInput
+              label="Account Number"
+              placeholder="Enter account number"
+              value={form.accountNo || ''}
+              onChangeText={(v) => updateForm('accountNo', v)}
+              icon={IdentificationCard}
+              keyboardType="number-pad"
+            />
+            <PremiumInput
+              label="IFSC Code"
+              placeholder="HDFC0001234"
+              value={form.ifscCode || ''}
+              onChangeText={(v) => updateForm('ifscCode', v.toUpperCase())}
+              icon={At}
+              autoCapitalize="characters"
+            />
+          </Animated.View>
+        ) : (
+          <Animated.View entering={FadeInDown} layout={Layout}>
+            <PremiumInput
+              label="UPI ID"
+              placeholder="e.g. store@upi"
+              value={form.upiId || ''}
+              onChangeText={(v) => updateForm('upiId', v)}
+              icon={At}
+              autoCapitalize="none"
+            />
+          </Animated.View>
+        )}
+      </View>
+    </Animated.View>
+  );
+
+  return (
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <MeshGradient />
+
+      <View style={styles.overlay}>
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
+            <ArrowLeft size={24} color={theme.text} />
+          </TouchableOpacity>
+          <View style={styles.progressTracker}>
+            <JourneyProgress totalSteps={3} currentStep={currentPhase - 1} />
+          </View>
+        </View>
+
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {currentPhase === 1 && renderPhase1()}
+          {currentPhase === 2 && renderPhase2()}
+          {currentPhase === 3 && renderPhase3()}
+          
+          {apiError && (
+            <Text style={[styles.errorText, { color: theme.error, marginTop: 20 }]}>
+              {apiError}
+            </Text>
+          )}
+        </ScrollView>
+
+        <BlurView intensity={isDark ? 30 : 60} style={styles.footer}>
+          <View style={styles.footerContent}>
+            <View style={styles.stepIndicator}>
+              <Text style={[styles.stepText, { color: theme.icon }]}>Phase</Text>
+              <Text style={[styles.stepValue, { color: theme.text }]}>0{currentPhase} <Text style={{ color: theme.icon, fontSize: 14 }}>/ 03</Text></Text>
+            </View>
+            <PrimaryButton
+              title={currentPhase === 3 ? "Submit KYC" : "Continue"}
+              onPress={handleNext}
+              loading={loading}
+              style={styles.nextBtn}
+              trailingIcon={currentPhase < 3 ? <ArrowRight size={20} color={theme.background} weight="bold" /> : undefined}
+            />
+          </View>
+        </BlurView>
+      </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 24,
-    paddingBottom: 20,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-  },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 24,
-    gap: 12,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
-    lineHeight: 20,
-  },
-  section: {
-    marginBottom: 32,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  inputWrapper: {
-    borderRadius: 14,
-    borderWidth: 1.5,
-    overflow: 'hidden',
-  },
-  input: {
-    height: 54,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  optionsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  optionButton: {
-    flex: 1,
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 6,
-    marginLeft: 4,
-  },
-  errorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-    gap: 8,
-  },
-  errorBoxText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  footer: {
-    marginTop: 12,
-  },
+  container: { flex: 1 },
+  overlay: { flex: 1, paddingTop: Platform.OS === 'ios' ? 60 : 40 },
+  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 },
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255, 255, 255, 0.05)', justifyContent: 'center', alignItems: 'center' },
+  progressTracker: { flex: 1, marginLeft: 10 },
+  scrollView: { flex: 1 },
+  scrollContent: { padding: 24, paddingBottom: 140 },
+  phaseContainer: { flex: 1 },
+  headerSection: { marginBottom: 32 },
+  phaseTitle: { ...Typography.H1, marginTop: 16, marginBottom: 8 },
+  phaseSubtitle: { ...Typography.BodyLarge, opacity: 0.8 },
+  formGroup: { gap: 16 },
+  row: { flexDirection: 'row', gap: 12, marginBottom: 8 },
+  halfBtn: { flex: 1 },
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: Platform.OS === 'ios' ? 34 : 24, paddingTop: 20, paddingHorizontal: 24, borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.1)' },
+  footerContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  stepIndicator: { flex: 1 },
+  stepText: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
+  stepValue: { fontSize: 24, fontWeight: '900', letterSpacing: -1 },
+  nextBtn: { flex: 2, height: 56 },
+  infoBox: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16, borderRadius: 16, marginTop: 10 },
+  infoText: { fontSize: 13, fontWeight: '500', flex: 1 },
+  errorText: { textAlign: 'center', fontWeight: '600' },
 });
+
