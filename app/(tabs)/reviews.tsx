@@ -1,6 +1,5 @@
 import { FilterPill } from '@/components/orders/FilterPill';
-import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
-import { RestaurantSwitcher } from '@/components/orders/RestaurantSwitcher';
+import { GlobalRestaurantHeader } from '@/components/common/GlobalRestaurantHeader';
 import { SearchBar } from '@/components/orders/SearchBar';
 import { RatingSummaryCard } from '@/components/reviews/RatingSummaryCard';
 import { ReviewCard } from '@/components/reviews/ReviewCard';
@@ -10,8 +9,9 @@ import { TabSwitcher } from '@/components/ui/TabSwitcher';
 import { Colors, Typography, StatusColors, Fonts } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
-import { CalendarBlank, ChatCircleDots, Info, Funnel, CaretDown } from 'phosphor-react-native';
-import React, { useState } from 'react';
+import { CalendarBlank, ChatCircleDots, Info, Funnel, CaretDown, StarHalf, MagnifyingGlass } from 'phosphor-react-native';
+import { EmptyState } from '@/components/ui/EmptyState';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ScrollView, StatusBar, StyleSheet, View, Pressable, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
@@ -19,10 +19,7 @@ import { RootState } from '@/store/store';
 import { DateRangePickerSheet } from '@/components/common/DateRangePickerSheet';
 import { FilterSheet } from '@/components/common/FilterSheet';
 
-const OWNED_RESTAURANTS = [
-  { id: '1', name: 'Muggs Cafe', locality: 'Balotra Locality' },
-  { id: '2', name: 'Pizza Palace', locality: 'HSR Layout, Bangalore' },
-];
+
 
 export default function ReviewsScreen() {
   const router = useRouter();
@@ -30,11 +27,9 @@ export default function ReviewsScreen() {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
 
+  const { status: restaurantStatus } = useSelector((state: RootState) => state.restaurant);
   const [activeTab, setActiveTab] = useState<'complaints' | 'reviews'>('reviews');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isOnline, setIsOnline] = useState(true);
-  const [currentRestaurant, setCurrentRestaurant] = useState(OWNED_RESTAURANTS[0]);
-  const [isSwitcherVisible, setIsSwitcherVisible] = useState(false);
   const { queue } = useSelector((state: RootState) => state.order);
 
   // Bottom Sheet States
@@ -89,24 +84,7 @@ export default function ReviewsScreen() {
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
-      <RestaurantHeader
-        restaurantName={currentRestaurant.name}
-        locality={currentRestaurant.locality}
-        isOnline={isOnline}
-        onToggleStatus={() => setIsOnline(!isOnline)}
-        onPressInfo={() => setIsSwitcherVisible(true)}
-      />
-
-      <RestaurantSwitcher
-        visible={isSwitcherVisible}
-        onClose={() => setIsSwitcherVisible(false)}
-        restaurants={OWNED_RESTAURANTS}
-        selectedId={currentRestaurant.id}
-        onSelect={(restaurant) => {
-          setCurrentRestaurant(restaurant);
-          setIsSwitcherVisible(false);
-        }}
-      />
+      <GlobalRestaurantHeader />
 
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: queue.length > 0 ? 270 : 150 }]}
@@ -185,24 +163,35 @@ export default function ReviewsScreen() {
               </View>
             </View>
 
-            {filteredReviews.map(review => (
-              <ReviewCard 
-                key={review.id} 
-                review={review} 
-                onReply={() => handleReviewPress(review.id)}
+            {filteredReviews.length > 0 ? (
+              filteredReviews.map(review => (
+                <ReviewCard 
+                  key={review.id} 
+                  review={review} 
+                  onReply={() => handleReviewPress(review.id)}
+                />
+              ))
+            ) : (
+              <EmptyState
+                icon={searchQuery ? MagnifyingGlass : ChatCircleDots}
+                title={searchQuery ? "No matches" : "No reviews yet"}
+                description={searchQuery 
+                  ? `We couldn't find any reviews matching "${searchQuery}".` 
+                  : "You haven't received any customer reviews for this period."
+                }
+                actionLabel={searchQuery ? "Clear Search" : undefined}
+                onAction={searchQuery ? () => setSearchQuery('') : undefined}
+                style={{ marginTop: 20 }}
               />
-            ))}
+            )}
           </>
         ) : (
-          <View style={styles.emptyContainer}>
-            <View style={[styles.emptyIconCircle, { backgroundColor: theme.surfaceSecondary, borderColor: theme.border }]}>
-              <ChatCircleDots size={48} color={theme.textSecondary} weight="bold" />
-            </View>
-            <ThemedText style={[styles.emptyTitle, { color: theme.text, fontFamily: Fonts.bold }]}>No complaints yet</ThemedText>
-            <ThemedText style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-              We couldn't find any complaints for the selected range. That's a good sign!
-            </ThemedText>
-          </View>
+          <EmptyState
+            icon={ChatCircleDots}
+            title="Silence is Golden!"
+            description="We couldn't find any complaints for the selected range. That's a great sign of quality!"
+            style={{ marginTop: 40 }}
+          />
         )}
       </ScrollView>
 

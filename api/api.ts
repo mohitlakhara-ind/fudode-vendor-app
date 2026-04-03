@@ -103,6 +103,9 @@ api.interceptors.request.use(
     
     // LOG REQUEST
     console.log(`🚀 [API Request] ${config.method?.toUpperCase()} ${config.url}`);
+    if (config.data) {
+      console.log('Body:', config.data instanceof FormData ? '[FormData]' : JSON.stringify(config.data, null, 2));
+    }
     
     return config;
   },
@@ -126,22 +129,27 @@ api.interceptors.response.use(
   (response) => {
     // LOG SUCCESSFUL RESPONSE
     console.log(`✅ [API Success] ${response.config.method?.toUpperCase()} ${response.config.url} | Status: ${response.status}`);
-    // Optional: Log data but keep it concise
-    // console.log('Data:', JSON.stringify(response.data).substring(0, 500));
+    if (response.data) {
+      console.log('Response:', JSON.stringify(response.data, null, 2));
+    }
     return response;
   },
   async (error) => {
     // LOG ERROR RESPONSE
     console.log(`❌ [API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url} | Status: ${error.response?.status || 'Network Error'}`);
     if (error.response?.data) {
-      console.log('Error Data:', error.response.data);
+      console.log('Error Response:', JSON.stringify(error.response.data, null, 2));
     }
 
     const originalRequest = error.config;
 
 
     // Handle 401 Unauthorized errors
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const isAuthEndpoint = originalRequest.url?.includes('/auth/logout') || 
+                          originalRequest.url?.includes('/auth/verify') || 
+                          originalRequest.url?.includes('/auth/request');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });

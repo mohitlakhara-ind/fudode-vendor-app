@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, SafeAreaView, TextInput, Switch } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, SafeAreaView, TextInput, Switch, Image, TouchableOpacity } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CaretLeft, Check, Camera, Plus, Leaf } from 'phosphor-react-native';
+import { CaretLeft, Check, Camera, Plus, Leaf, Trash } from 'phosphor-react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -27,6 +28,7 @@ export default function ItemDetailsScreen() {
     calories: '',
     allergens: '',
     tags: [] as string[],
+    image: null as string | null,
   });
 
   useEffect(() => {
@@ -45,6 +47,7 @@ export default function ItemDetailsScreen() {
             calories: '',
             allergens: '',
             tags: [],
+            image: item.imageUrl || null,
           });
           break;
         }
@@ -62,6 +65,23 @@ export default function ItemDetailsScreen() {
         tags: isSelected ? prev.tags.filter(t => t !== tag) : [...prev.tags, tag]
       };
     });
+  };
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setForm(prev => ({ ...prev, image: result.assets[0].uri }));
+    }
+  };
+
+  const removeImage = () => {
+    setForm(prev => ({ ...prev, image: null }));
   };
 
   const handleSave = () => {
@@ -90,10 +110,46 @@ export default function ItemDetailsScreen() {
           </ThemedText>
         </View>
 
-        <Pressable style={[styles.photoUpload, { backgroundColor: theme.surfaceSecondary, borderColor: theme.border, borderStyle: 'dashed', borderWidth: 1 }]}>
-          <Camera size={32} color={theme.textSecondary} />
-          <ThemedText style={{ color: theme.textSecondary, marginTop: 8, ...Typography.BodyRegular }}>Add Item Photo</ThemedText>
-        </Pressable>
+        <View style={styles.photoSection}>
+          <Pressable 
+            onPress={pickImage}
+            style={[
+              styles.photoUpload, 
+              { 
+                backgroundColor: theme.surfaceSecondary, 
+                borderColor: theme.border, 
+                borderStyle: form.image ? 'solid' : 'dashed', 
+                borderWidth: 1,
+                overflow: 'hidden'
+              }
+            ]}
+          >
+            {form.image ? (
+              <>
+                <Image source={{ uri: form.image }} style={styles.previewImage} />
+                <View style={styles.imageOverlay}>
+                  <Camera size={24} color="#fff" weight="fill" />
+                  <ThemedText style={styles.changePhotoText}>Change Photo</ThemedText>
+                </View>
+              </>
+            ) : (
+              <>
+                <Camera size={32} color={theme.textSecondary} />
+                <ThemedText style={{ color: theme.textSecondary, marginTop: 8, ...Typography.BodyRegular }}>Add Item Photo</ThemedText>
+              </>
+            )}
+          </Pressable>
+          
+          {form.image && (
+            <TouchableOpacity 
+              onPress={removeImage} 
+              style={[styles.removeImageBtn, { backgroundColor: theme.error + '20' }]}
+            >
+              <Trash size={18} color={theme.error} />
+              <ThemedText style={[styles.removeText, { color: theme.error }]}>Remove</ThemedText>
+            </TouchableOpacity>
+          )}
+        </View>
 
         <View style={styles.section}>
           <ThemedText style={[styles.sectionTitle, { color: theme.text }]}>Basic Info</ThemedText>
@@ -398,5 +454,42 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontSize: 16,
     fontWeight: '700',
+  },
+  photoSection: {
+    marginBottom: 24,
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  changePhotoText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  removeImageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 8,
+  },
+  removeText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

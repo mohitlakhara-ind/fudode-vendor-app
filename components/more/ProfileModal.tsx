@@ -4,6 +4,11 @@ import { SignOut, Devices, Users } from 'phosphor-react-native';
 import { Colors, Fonts, Typography } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { ModalWrapper } from '@/components/ui/ModalWrapper';
+import { useAppDispatch } from '@/store/hooks';
+import { logout } from '@/store/slices/authSlice';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { LogoutConfirmationModal } from './LogoutConfirmationModal';
 
 interface ProfileModalProps {
   visible: boolean;
@@ -20,6 +25,20 @@ interface ProfileModalProps {
 export const ProfileModal = ({ visible, onClose, userData }: ProfileModalProps) => {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
+  const dispatch = useAppDispatch();
+  const router = useRouter();
+  const [logoutVisible, setLogoutVisible] = useState(false);
+
+  const handleLogout = () => {
+    dispatch(logout());
+    setLogoutVisible(false);
+    onClose();
+    router.replace('/(auth)/login');
+  };
+
+  const avatarSource = typeof userData.avatar === 'string' 
+    ? { uri: userData.avatar } 
+    : (userData.avatar || { uri: 'https://via.placeholder.com/100' });
 
   return (
     <ModalWrapper 
@@ -36,7 +55,7 @@ export const ProfileModal = ({ visible, onClose, userData }: ProfileModalProps) 
     >
       <View style={styles.userInfoSection}>
         <Image 
-          source={userData.avatar || { uri: 'https://via.placeholder.com/100' }} 
+          source={avatarSource} 
           style={styles.avatar} 
         />
         <View style={styles.details}>
@@ -50,21 +69,36 @@ export const ProfileModal = ({ visible, onClose, userData }: ProfileModalProps) 
       <View style={[styles.actionsDivider, { backgroundColor: theme.border }]} />
 
       <View style={styles.actionButtons}>
-        <Pressable style={[styles.actionButton, { backgroundColor: theme.secondary }]}>
+        <Pressable 
+          style={[styles.actionButton, { backgroundColor: theme.secondary }]}
+          onPress={() => setLogoutVisible(true)}
+        >
           <SignOut size={20} weight="bold" color="#FFF" style={{ marginRight: 8 }} />
           <Text style={styles.actionButtonText}>Logout</Text>
         </Pressable>
 
-        <Pressable style={[styles.outlineButton, { borderColor: theme.secondary }]}>
+        <Pressable 
+          style={[styles.outlineButton, { borderColor: theme.secondary }]}
+          onPress={() => setLogoutVisible(true)}
+        >
           <Devices size={20} weight="bold" color={theme.secondary} style={{ marginRight: 8 }} />
           <Text style={[styles.outlineButtonText, { color: theme.secondary }]}>Logout from all devices</Text>
         </Pressable>
 
-        <Pressable style={[styles.outlineButton, { borderColor: theme.secondary }]}>
+        <Pressable 
+          style={[styles.outlineButton, { borderColor: theme.secondary }]}
+          onPress={() => setLogoutVisible(true)}
+        >
           <Users size={20} weight="bold" color={theme.secondary} style={{ marginRight: 8 }} />
           <Text style={[styles.outlineButtonText, { color: theme.secondary }]}>Logout all users and devices</Text>
         </Pressable>
       </View>
+
+      <LogoutConfirmationModal
+        visible={logoutVisible}
+        onClose={() => setLogoutVisible(false)}
+        onConfirm={handleLogout}
+      />
     </ModalWrapper>
   );
 };

@@ -2,8 +2,7 @@ import { DashboardCard } from '@/components/dashboard/DashboardCard';
 import { MiniAreaChart } from '@/components/dashboard/MiniAreaChart';
 import { MiniBarChart } from '@/components/dashboard/MiniBarChart';
 import { FilterPill } from '@/components/orders/FilterPill';
-import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
-import { RestaurantSwitcher } from '@/components/orders/RestaurantSwitcher';
+import { GlobalRestaurantHeader } from '@/components/common/GlobalRestaurantHeader';
 import { ThemedText } from '@/components/themed-text';
 import { DASHBOARD_MENU_ITEMS, MOCK_DASHBOARD_STATS } from '@/constants/mockDashboard';
 import { Colors, StatusColors, Typography } from '@/constants/theme';
@@ -26,18 +25,13 @@ import {
   Clock,
   WarningCircle
 } from 'phosphor-react-native';
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Dimensions, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { FunnelSection, CustomersSection, OffersSection, AdsSection, SummarySection, SalesSection, KitchenEfficiencySection, ServiceQualitySection } from '@/components/dashboard/AnalyticsSections';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
 import { useRouter } from 'expo-router';
-
-const OWNED_RESTAURANTS = [
-  { id: '1', name: 'Muggs Cafe', locality: 'Balotra Locality' },
-  { id: '2', name: 'Pizza Palace', locality: 'HSR Layout, Bangalore' },
-];
 
 const HUB_TABS = ['My Feed', 'Sales', 'Funnel', 'Customers', 'Offers', 'Ads', 'Service quality', 'Kitchen efficiency'];
 
@@ -66,10 +60,8 @@ export default function DashboardScreen() {
   const theme = Colors[colorScheme];
   const isDark = colorScheme === 'dark';
 
+  const { status: restaurantStatus } = useSelector((state: RootState) => state.restaurant);
   const [activeTab, setActiveTab] = useState('Sales');
-  const [currentRestaurant, setCurrentRestaurant] = useState(OWNED_RESTAURANTS[0]);
-  const [isSwitcherVisible, setIsSwitcherVisible] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
   const { queue } = useSelector((state: RootState) => state.order);
 
   const renderMetric = (label: string, value: string | number, change: number, showChart: boolean = false) => (
@@ -96,24 +88,7 @@ export default function DashboardScreen() {
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
-      <RestaurantHeader
-        restaurantName={currentRestaurant.name}
-        locality={currentRestaurant.locality}
-        isOnline={isOnline}
-        onToggleStatus={() => setIsOnline(!isOnline)}
-        onPressInfo={() => setIsSwitcherVisible(true)}
-      />
-
-      <RestaurantSwitcher
-        visible={isSwitcherVisible}
-        onClose={() => setIsSwitcherVisible(false)}
-        restaurants={OWNED_RESTAURANTS}
-        selectedId={currentRestaurant.id}
-        onSelect={(restaurant) => {
-          setCurrentRestaurant(restaurant);
-          setIsSwitcherVisible(false);
-        }}
-      />
+      <GlobalRestaurantHeader />
 
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: queue.length > 0 ? 240 : 120 }]}

@@ -100,7 +100,11 @@ export default function RestaurantStatusScreen() {
               </Text>
             </View>
             <Text style={[styles.restaurantLocation, { color: theme.textSecondary }]} numberOfLines={1}>
-              {restaurantStatus?.address || 'Location details pending'}
+              {typeof restaurantStatus?.address === 'string' 
+                ? restaurantStatus.address 
+                : (restaurantStatus?.area 
+                    ? `${restaurantStatus.shopno ? restaurantStatus.shopno + ', ' : ''}${restaurantStatus.area}, ${restaurantStatus.city}` 
+                    : 'Location details pending')}
             </Text>
           </View>
         </View>

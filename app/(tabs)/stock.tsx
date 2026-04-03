@@ -2,8 +2,7 @@ import { InventoryCategoryCard } from '@/components/inventory/InventoryCategoryC
 import { ItemDetailsSheet } from '@/components/inventory/ItemDetailsSheet';
 import { MarkOutOfStockSheet } from '@/components/inventory/MarkOutOfStockSheet';
 import { StockFilterSheet } from '@/components/inventory/StockFilterSheet';
-import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
-import { RestaurantSwitcher } from '@/components/orders/RestaurantSwitcher';
+import { GlobalRestaurantHeader } from '@/components/common/GlobalRestaurantHeader';
 import { SearchBar } from '@/components/orders/SearchBar';
 import { ThemedText } from '@/components/themed-text';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
@@ -12,30 +11,26 @@ import { Colors, Typography } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { RootState } from '@/store/store';
 import { useRouter } from 'expo-router';
-import { List } from 'phosphor-react-native';
-import React, { useState } from 'react';
+import { List, MagnifyingGlass, WarningCircle } from 'phosphor-react-native';
+import { EmptyState } from '@/components/ui/EmptyState';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
-const OWNED_RESTAURANTS = [
-  { id: '1', name: 'The Gourmet Kitchen', locality: 'Indiranagar, Bangalore' },
-  { id: '2', name: 'Pizza Palace', locality: 'HSR Layout, Bangalore' },
-  { id: '3', name: 'Sushi Zen', locality: 'Koramangala, Bangalore' },
-];
+
 
 export default function StockScreen() {
   const insets = useSafeAreaInsets();
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
   const router = useRouter();
+  const { status: restaurantStatus } = useSelector((state: RootState) => state.restaurant);
   const [activeTab, setActiveTab] = useState<'items' | 'addons'>('items');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isOnline, setIsOnline] = useState(true);
-  const [currentRestaurant, setCurrentRestaurant] = useState(OWNED_RESTAURANTS[0]);
-  const [isSwitcherVisible, setIsSwitcherVisible] = useState(false);
+  const { queue } = useSelector((state: RootState) => state.order);
+
   const [inventory, setInventory] = useState<InventoryCategory[]>(MOCK_INVENTORY);
   const [addons, setAddons] = useState<InventoryCategory[]>(MOCK_ADDONS);
-  const { queue } = useSelector((state: RootState) => state.order);
 
   // Bottom Sheet States
   const [showStockSheet, setShowStockSheet] = useState(false);
@@ -120,24 +115,7 @@ export default function StockScreen() {
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
-      <RestaurantHeader
-        restaurantName={currentRestaurant.name}
-        locality={currentRestaurant.locality}
-        isOnline={isOnline}
-        onToggleStatus={() => setIsOnline(!isOnline)}
-        onPressInfo={() => setIsSwitcherVisible(true)}
-      />
-
-      <RestaurantSwitcher
-        visible={isSwitcherVisible}
-        onClose={() => setIsSwitcherVisible(false)}
-        restaurants={OWNED_RESTAURANTS}
-        selectedId={currentRestaurant.id}
-        onSelect={(restaurant) => {
-          setCurrentRestaurant(restaurant);
-          setIsSwitcherVisible(false);
-        }}
-      />
+      <GlobalRestaurantHeader />
 
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: queue.length > 0 ? 240 : 120 }]}
@@ -172,15 +150,29 @@ export default function StockScreen() {
         </View>
 
         <View style={styles.listContainer}>
-          {filteredData.map(category => (
-            <InventoryCategoryCard
-              key={category.id}
-              category={category}
-              onToggleCategory={handleToggleCategory}
-              onToggleItem={handleToggleItem}
-              onPressItem={handlePressItem}
+          {filteredData.length > 0 ? (
+            filteredData.map(category => (
+              <InventoryCategoryCard
+                key={category.id}
+                category={category}
+                onToggleCategory={handleToggleCategory}
+                onToggleItem={handleToggleItem}
+                onPressItem={handlePressItem}
+              />
+            ))
+          ) : (
+            <EmptyState
+              icon={searchQuery ? MagnifyingGlass : WarningCircle}
+              title={searchQuery ? "No results found" : "Inventory is empty"}
+              description={searchQuery 
+                ? `We couldn't find any items matching "${searchQuery}". Try a different search term.` 
+                : "You don't have any items in your inventory yet."
+              }
+              actionLabel={searchQuery ? "Clear Search" : "Add Your First Item"}
+              onAction={() => searchQuery ? setSearchQuery('') : router.push('/catalog')}
+              style={{ marginTop: 40 }}
             />
-          ))}
+          )}
         </View>
       </ScrollView>
 

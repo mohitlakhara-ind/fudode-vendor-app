@@ -1,18 +1,19 @@
 import { OnboardingStep3 } from '@/api/types';
-import api from '@/api/api';
 import { MeshGradient } from '@/components/ui/MeshGradient';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { PremiumButton } from '@/components/ui/PremiumButton';
 import { Colors, Typography } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { getRestaurantContract, getRestaurantStatus, submitStep3 } from '@/store/slices/restaurantSlice';
-import { BlurView } from 'expo-blur';
+import { updateRestaurantToken } from '@/store/slices/authSlice';
 import { useRouter } from 'expo-router';
 import {
   ArrowLeft,
+  ArrowRight,
   CheckCircle,
-  FileText,
-  ShieldCheck
+  Clock,
+  ShieldCheck,
+  WarningCircle
 } from 'phosphor-react-native';
 import React, { useEffect, useState } from 'react';
 import {
@@ -20,6 +21,7 @@ import {
   Alert,
   Dimensions,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,7 +29,7 @@ import {
   View,
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
@@ -38,37 +40,56 @@ export default function ContractScreen() {
   const theme = Colors[colorScheme];
   const isDark = colorScheme === 'dark';
 
-  const { loading: submitting, error: apiError } = useAppSelector((state) => state.restaurant);
-  
+  const { status, loading: submitting, error: apiError } = useAppSelector((state) => state.restaurant);
+
   const [contractMarkdown, setContractMarkdown] = useState<string>('');
   const [contractData, setContractData] = useState<{ id: string; version: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPending, setIsPending] = useState(false);
   const [accepted, setAccepted] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchContract = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+
+    try {
+      const resultAction = await dispatch(getRestaurantContract());
+      if (getRestaurantContract.fulfilled.match(resultAction)) {
+        const data = resultAction.payload.data;
+        setContractMarkdown(data.content);
+        setContractData({
+          id: data.id,
+          version: data.version
+        });
+        setIsPending(false);
+      } else {
+        const errorMsg = resultAction.payload as string;
+        // If contract not found, it's likely pending verification
+        if (errorMsg?.includes('No active contract found') || errorMsg?.includes('404')) {
+          setIsPending(true);
+        } else {
+          Alert.alert('Error', errorMsg || 'Failed to load the contract. Please try again.');
+          router.back();
+        }
+      }
+    } catch (error) {
+      console.error('Fetch Contract Error:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchContract = async () => {
-      try {
-        const resultAction = await dispatch(getRestaurantContract());
-        if (getRestaurantContract.fulfilled.match(resultAction)) {
-          const data = resultAction.payload.data;
-          setContractMarkdown(data.content);
-          setContractData({
-            id: data.id,
-            version: data.version
-          });
-        } else {
-          throw new Error('Failed to load contract');
-        }
-      } catch (error) {
-        Alert.alert('Error', 'Failed to load the contract. Please try again.');
-        router.back();
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchContract();
   }, []);
+
+  useEffect(() => {
+    if (status?.onboardingStep && status.onboardingStep >= 3) {
+      setAccepted(true);
+    }
+  }, [status?.onboardingStep]);
 
   const handleSubmit = async () => {
     if (!accepted) {
@@ -86,18 +107,78 @@ export default function ContractScreen() {
 
     const resultAction = await dispatch(submitStep3(payload));
     if (submitStep3.fulfilled.match(resultAction)) {
+      if (contractData?.id) {
+         console.log(`🚀 [Handshake] Step 3 success. Finalizing token for Restaurant: ${contractData.id}`);
+         await dispatch(updateRestaurantToken({ restaurantId: contractData.id }));
+      }
       await dispatch(getRestaurantStatus());
-      Alert.alert('Congratulations!', 'Your registration is complete. We will verify your details soon.', [
-        { text: 'Go to Dashboard', onPress: () => router.replace('/(tabs)') }
-      ]);
+      router.replace('/(tabs)');
     }
   };
 
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <MeshGradient />
         <ActivityIndicator size="large" color={theme.primary} />
         <Text style={[styles.loadingText, { color: theme.icon, marginTop: 16 }]}>Loading legal agreement...</Text>
+      </View>
+    );
+  }
+
+  if (isPending) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <MeshGradient />
+        <View style={styles.overlay}>
+          <View style={styles.topBar}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <ArrowLeft size={24} color={theme.text} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: theme.text }]}>Contract Status</Text>
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.pendingContent}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={() => fetchContract(true)} tintColor={theme.primary} />
+            }
+          >
+            <Animated.View entering={ZoomIn.duration(600)} style={styles.pendingIconContainer}>
+              <View style={[styles.iconCircle, { backgroundColor: theme.primary + '15' }]}>
+                <Clock size={64} color={theme.primary} weight="duotone" />
+              </View>
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(200)} style={styles.pendingTextSection}>
+              <Text style={[styles.pendingTitle, { color: theme.text }]}>Verification in Progress</Text>
+              <Text style={[styles.pendingDescription, { color: theme.icon }]}>
+                Your documents are currently being reviewed by our compliance team. This normally takes 24-48 hours.
+              </Text>
+
+              <View style={[styles.infoBox, { backgroundColor: theme.surfaceSecondary, borderColor: theme.border }]}>
+                <WarningCircle size={20} color={theme.primary} weight="fill" />
+                <Text style={[styles.infoText, { color: theme.text }]}>
+                  We'll notify you via SMS and Email once your customized contract is ready for signature.
+                </Text>
+              </View>
+            </Animated.View>
+
+            <Animated.View entering={FadeInUp.delay(400)} style={styles.pendingActions}>
+              <PremiumButton
+                label="Refresh Status"
+                onPress={() => fetchContract(true)}
+                isLoading={refreshing}
+                style={styles.refreshBtn}
+                variant="primary"
+              />
+              <TouchableOpacity onPress={() => router.back()} style={styles.secondaryBtn}>
+                <Text style={[styles.secondaryBtnText, { color: theme.primary }]}>Back to Dashboard</Text>
+                <ArrowRight size={18} color={theme.primary} />
+              </TouchableOpacity>
+            </Animated.View>
+          </ScrollView>
+        </View>
       </View>
     );
   }
@@ -114,8 +195,8 @@ export default function ContractScreen() {
           <Text style={[styles.headerTitle, { color: theme.text }]}>Terms of Service</Text>
         </View>
 
-        <ScrollView 
-          style={styles.scrollView} 
+        <ScrollView
+          style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
@@ -148,14 +229,14 @@ export default function ContractScreen() {
           )}
         </ScrollView>
 
-        <BlurView intensity={isDark ? 50 : 80} style={styles.footer}>
-          <TouchableOpacity 
-            style={styles.acceptanceRow} 
+        <View style={[styles.footer, { backgroundColor: theme.background, borderTopColor: theme.border }]}>
+          <TouchableOpacity
+            style={styles.acceptanceRow}
             onPress={() => setAccepted(!accepted)}
             activeOpacity={0.7}
           >
             <View style={[
-              styles.checkbox, 
+              styles.checkbox,
               { borderColor: accepted ? theme.primary : theme.icon },
               accepted && { backgroundColor: theme.primary }
             ]}>
@@ -165,15 +246,15 @@ export default function ContractScreen() {
               I have read and agree to the partnership terms.
             </Text>
           </TouchableOpacity>
-
-          <PrimaryButton
-            title={submitting ? "Processing..." : "Accept & Complete"}
+          <PremiumButton
+            label={submitting ? "Processing..." : "Accept & Complete"}
             onPress={handleSubmit}
-            loading={submitting}
+            isLoading={submitting}
             style={styles.submitBtn}
             disabled={!accepted}
+            variant="primary"
           />
-        </BlurView>
+        </View>
       </View>
     </View>
   );
@@ -198,4 +279,16 @@ const styles = StyleSheet.create({
   acceptanceText: { fontSize: 14, fontWeight: '500', flex: 1 },
   submitBtn: { height: 56 },
   errorText: { textAlign: 'center', fontWeight: '600' },
+  pendingContent: { flexGrow: 1, padding: 24, justifyContent: 'center', alignItems: 'center' },
+  pendingIconContainer: { marginBottom: 32 },
+  iconCircle: { width: 120, height: 120, borderRadius: 60, justifyContent: 'center', alignItems: 'center' },
+  pendingTextSection: { alignItems: 'center', marginBottom: 40 },
+  pendingTitle: { ...Typography.H1, textAlign: 'center', marginBottom: 12 },
+  pendingDescription: { ...Typography.BodyLarge, textAlign: 'center', paddingHorizontal: 20, marginBottom: 24 },
+  infoBox: { flexDirection: 'row', padding: 16, borderRadius: 16, borderWidth: 1, alignItems: 'center', gap: 12 },
+  infoText: { fontSize: 13, flex: 1, lineHeight: 18, fontWeight: '500' },
+  pendingActions: { width: '100%', gap: 16 },
+  refreshBtn: { height: 56 },
+  secondaryBtn: { height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  secondaryBtnText: { fontSize: 16, fontWeight: '600' },
 });

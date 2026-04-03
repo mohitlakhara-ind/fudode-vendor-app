@@ -41,7 +41,7 @@ export default function VerifyScreen() {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
   const isDark = colorScheme === 'dark';
-  const { verifyOtpAction, loading, error, clearError } = useAuth();
+  const { verifyOtpAction, requestOtpAction, loading, error, clearError } = useAuth();
   const [otp, setOtp] = useState('');
   const [timer, setTimer] = useState(30);
   const inputRef = useRef<TextInput>(null);
@@ -81,7 +81,7 @@ export default function VerifyScreen() {
   }, [error]);
 
   const handleVerify = async () => {
-    if (otp.length !== 6) return;
+    if (otp.length !== 6 || loading) return;
     try {
       const deviceId = await getPersistentDeviceId();
       const result = await verifyOtpAction({
@@ -93,9 +93,28 @@ export default function VerifyScreen() {
 
       if (verifyOtp.fulfilled.match(result)) {
         router.replace('/(auth)/onboarding');
+      } else {
+        // If OTP didn't match, clear and let user re-try
+        setOtp('');
+        triggerShake();
+        inputRef.current?.focus();
       }
     } catch (e) {
+      setOtp('');
       triggerShake();
+      inputRef.current?.focus();
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (timer > 0 || !number) return;
+    try {
+      setTimer(30);
+      await requestOtpAction(number);
+      setOtp(''); // Clear existing digits when resending
+      inputRef.current?.focus();
+    } catch (e) {
+      console.error('[Verify] Resend failed:', e);
     }
   };
 
@@ -205,31 +224,29 @@ export default function VerifyScreen() {
             </Animated.View>
           )}
 
-          <Animated.View
-            entering={FadeInUp.delay(800).duration(600)}
-            style={styles.footer}
-          >
-            <TouchableOpacity 
-              disabled={timer > 0} 
-              onPress={() => setTimer(30)}
-              style={styles.timerRow}
-            >
-              <Timer size={18} color={timer > 0 ? theme.textSecondary : theme.primary} weight="bold" />
-              <Text style={[styles.resendText, { color: timer > 0 ? theme.textSecondary : theme.primary }]}>
-                {timer > 0 ? `Resend in ${timer}s` : 'Resend Code Now'}
-              </Text>
-            </TouchableOpacity>
-
-            <PremiumButton
-              label={loading ? 'Verifying...' : 'Authenticate'}
-              onPress={handleVerify}
-              isLoading={loading}
-              disabled={otp.length !== 6}
-              variant="primary"
-              size="large"
-            />
-          </Animated.View>
         </View>
+
+        <GlassView intensity={80} tint={isDark ? 'dark' : 'light'} style={styles.stickyFooter}>
+          <TouchableOpacity 
+            disabled={timer > 0} 
+            onPress={handleResendOtp}
+            style={styles.timerRow}
+          >
+            <Timer size={18} color={timer > 0 ? theme.textSecondary : theme.primary} weight="bold" />
+            <Text style={[styles.resendText, { color: timer > 0 ? theme.textSecondary : theme.primary }]}>
+              {timer > 0 ? `Resend in ${timer}s` : 'Resend Code Now'}
+            </Text>
+          </TouchableOpacity>
+
+          <PremiumButton
+            label={loading ? 'Verifying...' : 'Authenticate'}
+            onPress={handleVerify}
+            isLoading={loading}
+            disabled={otp.length !== 6}
+            variant="primary"
+            size="large"
+          />
+        </GlassView>
       </KeyboardAvoidingView>
     </View>
   );
@@ -336,8 +353,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   footer: {
-    marginTop: 'auto',
-    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+    marginTop: 20,
+    paddingBottom: 20,
+  },
+  stickyFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
   timerRow: {
     flexDirection: 'row',

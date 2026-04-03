@@ -37,6 +37,8 @@ import * as SplashScreen from 'expo-splash-screen';
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
+import { Loading } from '@/components/ui/Loading';
+
 function AppNavigator() {
   const dispatch = useDispatch<AppDispatch>();
   const { colorScheme } = useAppTheme();
@@ -72,12 +74,12 @@ function AppNavigator() {
   useEffect(() => {
     if (isAuthenticated) {
       dispatch(getRestaurantStatus());
-      dispatch(getOwnerProfile());
+      // getOwnerProfile is now redundant as getRestaurantStatus fetches the profile
     }
   }, [isAuthenticated, dispatch]);
 
   useEffect(() => {
-    if (!isReady) return;
+    if (!isReady || loading) return;
 
     const inAuthGroup = (segments as any).includes('(auth)');
     const currentPath = segments.join('/');
@@ -89,32 +91,37 @@ function AppNavigator() {
         router.replace('/(auth)/login');
       }
     } else {
-      // 1. Wait if we're in the middle of fetching the status
-      if (restaurantLoading) {
-        console.log('[AppNavigator] Waiting for restaurant status...');
+      // 1. Wait if we're in the middle of fetching the status for the first time
+      if (restaurantLoading && !restaurantStatus) {
+        console.log('[AppNavigator] Initial status fetch in progress...');
         return;
       }
 
       // 2. Decide based on status
       if (!restaurantStatus) {
-        console.log('[AppNavigator] Waiting for restaurant status...');
+        if (!restaurantLoading) {
+           console.log('[AppNavigator] No restaurant status found, defaulting to owner-profile');
+           if (currentPath !== '(auth)/owner-profile' && !currentPath.includes('verify')) {
+             router.replace('/(auth)/owner-profile');
+           }
+        }
         return;
       }
 
       // 3. Status exists, follow the steps
+      // Note: If onboardingStatus exists, Phase 2 (Identity) MUST be complete as it's the prerequisite for restaurant creation
       const isVerified = restaurantStatus.onboardingStatus === 'VERIFIED' || restaurantStatus.onboardingStatus === 'COMPLETED';
-      const isOwnerComplete = restaurantStatus.profileData?.isOwnerProfileComplete;
+      const isOwnerComplete = restaurantStatus.profileData?.isOwnerProfileComplete || !!restaurantStatus.onboardingStatus;
 
       const inOnboardingGroup = 
         currentPath.includes('onboarding') || 
-        currentPath.includes('owner-profile') || 
         currentPath.includes('store-profile') ||
         currentPath.includes('kyc') || 
         currentPath.includes('contract');
 
       // PHASE 2 CHECK: Owner Identity
       if (!isOwnerComplete) {
-        if (currentPath !== '(auth)/owner-profile') {
+        if (!currentPath.includes('owner-profile') && !currentPath.includes('verify')) {
           console.log('[AppNavigator] Owner profile incomplete, forcing Phase 2 Identity Verification');
           router.replace('/(auth)/owner-profile');
           return;
@@ -122,9 +129,8 @@ function AppNavigator() {
       } 
       // PHASE 3 CHECK: Restaurant Verification
       else if (!isVerified) {
-        // If Phase 2 is complete, we should be in Phase 3
-        // Allow onboarding screens, but redirect to hub if we are still on Phase 2 screen
-        if (currentPath === '(auth)/owner-profile' || (!inOnboardingGroup && !currentPath.includes('(tabs)'))) {
+        // Only redirect to onboarding if we are not already in its sub-screens
+        if (!inOnboardingGroup && !currentPath.includes('onboarding')) {
           console.log('[AppNavigator] Phase 2 complete, transitioning to Phase 3 Onboarding');
           router.replace('/(auth)/onboarding');
           return;
@@ -138,6 +144,7 @@ function AppNavigator() {
       }
     }
     
+    // Hide splash screen only when we are sure where the user belongs
     SplashScreen.hideAsync();
   }, [isAuthenticated, restaurantStatus, segments, loading, isReady, router, restaurantLoading]);
 
@@ -165,12 +172,14 @@ function AppNavigator() {
     },
   };
 
-  if (!isReady || loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors[colorScheme].background }}>
-        <ActivityIndicator size="large" color={Colors[colorScheme].primary} />
-      </View>
-    );
+  const inAuthGroup = (segments as any).includes('(auth)');
+  
+  // INITIAL INITIALIZATION ONLY
+  // Once the app is ready, we keep the stack mounted to prevent native de-sync errors
+  const isAppInitializing = !isReady || (loading && !inAuthGroup);
+
+  if (isAppInitializing) {
+    return <Loading />;
   }
 
   return (

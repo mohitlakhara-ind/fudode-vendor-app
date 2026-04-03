@@ -8,9 +8,8 @@ import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
 import { LinearGradient } from 'expo-linear-gradient';
-import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
-import { RestaurantSwitcher } from '@/components/orders/RestaurantSwitcher';
-import { useState } from 'react';
+import { GlobalRestaurantHeader } from '@/components/common/GlobalRestaurantHeader';
+import { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
 
@@ -47,38 +46,15 @@ export default function PromotionsScreen() {
   const theme = Colors[colorScheme];
   const router = useRouter();
 
-  const OWNED_RESTAURANTS = [
-    { id: '1', name: 'Muggs Cafe', locality: 'Balotra Locality' },
-    { id: '2', name: 'Pizza Palace', locality: 'HSR Layout, Bangalore' },
-  ];
 
-  const [isOnline, setIsOnline] = useState(true);
-  const [currentRestaurant, setCurrentRestaurant] = useState(OWNED_RESTAURANTS[0]);
-  const [isSwitcherVisible, setIsSwitcherVisible] = useState(false);
+
   const { queue } = useSelector((state: RootState) => state.order);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       
-      <RestaurantHeader
-        restaurantName={currentRestaurant.name}
-        locality={currentRestaurant.locality}
-        isOnline={isOnline}
-        onToggleStatus={() => setIsOnline(!isOnline)}
-        onPressInfo={() => setIsSwitcherVisible(true)}
-      />
-
-      <RestaurantSwitcher
-        visible={isSwitcherVisible}
-        onClose={() => setIsSwitcherVisible(false)}
-        restaurants={OWNED_RESTAURANTS}
-        selectedId={currentRestaurant.id}
-        onSelect={(res) => {
-          setCurrentRestaurant(res);
-          setIsSwitcherVisible(false);
-        }}
-      />
+      <GlobalRestaurantHeader />
       
       <ScrollView 
         contentContainerStyle={[styles.scrollContent, { paddingBottom: queue.length > 0 ? 240 : 120 }]}

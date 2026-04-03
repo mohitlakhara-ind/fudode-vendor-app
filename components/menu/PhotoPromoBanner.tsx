@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Image, Pressable } from 'react-native';
 import { Plus } from 'phosphor-react-native';
+import { useRouter } from 'expo-router';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { Colors } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
@@ -8,6 +9,11 @@ import { ThemedText } from '@/components/themed-text';
 export const PhotoPromoBanner = () => {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
+  const router = useRouter();
+
+  const handlePress = () => {
+    router.push('/menu/add-item');
+  };
 
   return (
     <View style={[styles.promoBanner, { backgroundColor: theme.primary + '15', borderColor: theme.primary + '30', borderWidth: 1 }]}>
@@ -16,9 +22,12 @@ export const PhotoPromoBanner = () => {
         <ThemedText style={[styles.promoSubtitle, { color: theme.textSecondary }]}>
           Click a photo of a prepared dish and enhance while you add it to menu
         </ThemedText>
-        <Pressable style={[styles.learnMoreBtn, { backgroundColor: theme.primary }]}>
+        <Pressable 
+          style={[styles.learnMoreBtn, { backgroundColor: theme.primary }]}
+          onPress={handlePress}
+        >
           <Plus size={16} color={theme.background} weight="bold" />
-          <ThemedText style={[styles.learnMoreText, { color: theme.background }]}>Learn more</ThemedText>
+          <ThemedText style={[styles.learnMoreText, { color: theme.background }]}>Add Item</ThemedText>
         </Pressable>
       </View>
       <View style={styles.promoImageWrapper}>

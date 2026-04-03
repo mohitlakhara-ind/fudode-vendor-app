@@ -1,3 +1,5 @@
+import { PrimaryButton } from '@/components/PrimaryButton';
+import { GlassView } from '@/components/ui/GlassView';
 import { JourneyProgress } from '@/components/ui/JourneyProgress';
 import { MeshGradient } from '@/components/ui/MeshGradient';
 import { Colors, Typography } from '@/constants/theme';
@@ -5,23 +7,22 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logout } from '@/store/slices/authSlice';
 import { getRestaurantStatus } from '@/store/slices/restaurantSlice';
-import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import {
   CaretRight,
   CheckCircle,
   Files,
   Lightning,
-  MapPin,
   ShieldCheck,
   SignOut,
-  Storefront
+  Storefront,
 } from 'phosphor-react-native';
 import { useEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -42,12 +43,9 @@ export default function OnboardingScreen() {
 
   const { status, loading } = useAppSelector((state) => state.restaurant);
 
-  useEffect(() => {
-    dispatch(getRestaurantStatus());
-  }, []);
 
   const steps = useMemo(() => {
-    const currentOnboardingStep = status?.onboardingStep || 1;
+    const currentOnboardingStep = status?.onboardingStep ?? 0;
     return [
       {
         id: 'step1',
@@ -55,7 +53,7 @@ export default function OnboardingScreen() {
         description: 'Basic details & shop location',
         icon: Storefront,
         route: '/(auth)/store-profile',
-        isCompleted: currentOnboardingStep > 1,
+        isCompleted: currentOnboardingStep >= 1,
         isClickable: true,
       },
       {
@@ -64,8 +62,8 @@ export default function OnboardingScreen() {
         description: 'Legal name, FSSAI & PAN details',
         icon: Files,
         route: '/(auth)/kyc',
-        isCompleted: currentOnboardingStep > 2,
-        isClickable: currentOnboardingStep >= 2,
+        isCompleted: currentOnboardingStep >= 2,
+        isClickable: currentOnboardingStep >= 1,
       },
       {
         id: 'step3',
@@ -73,14 +71,14 @@ export default function OnboardingScreen() {
         description: 'Review partnership & terms',
         icon: ShieldCheck,
         route: '/(auth)/contract',
-        isCompleted: status?.onboardingStatus === 'COMPLETED' || status?.onboardingStatus === 'VERIFIED',
-        isClickable: currentOnboardingStep >= 3,
+        isCompleted: currentOnboardingStep >= 3 || status?.onboardingStatus === 'COMPLETED' || status?.onboardingStatus === 'VERIFIED',
+        isClickable: currentOnboardingStep >= 2,
       },
     ];
   }, [status]);
 
-  const currentStep = status?.onboardingStep || 1;
-  const progressPercent = Math.min((currentStep - 1) / 3, 1);
+  const currentStep = status?.onboardingStep ?? 0;
+  const progressPercent = Math.min((currentStep) / 3, 1);
 
   const handleStepPress = (route: string, isClickable: boolean) => {
     if (!isClickable) {
@@ -131,8 +129,8 @@ export default function OnboardingScreen() {
         </View>
 
         <Animated.View entering={FadeInDown.delay(400).duration(600)} style={styles.progressSection}>
-          <BlurView intensity={isDark ? 20 : 40} style={styles.progressCard}>
-            <JourneyProgress totalSteps={3} currentStep={Math.max(0, currentStep - 1)} />
+          <GlassView intensity={40} tint={isDark ? 'dark' : 'light'} style={styles.progressCard}>
+            <JourneyProgress totalSteps={3} currentStep={Math.max(0, currentStep)} />
             <View style={styles.progressFooter}>
               <View style={styles.progressInfo}>
                 <Lightning size={16} color={theme.primary} weight="fill" />
@@ -140,9 +138,9 @@ export default function OnboardingScreen() {
                   {status?.onboardingStatus === 'COMPLETED' ? '100% Completed' : `${Math.round(progressPercent * 100)}% Completed`}
                 </Text>
               </View>
-              <Text style={[styles.estimatedText, { color: theme.icon }]}>Step {currentStep} of 3</Text>
+              <Text style={[styles.estimatedText, { color: theme.icon }]}>Step {currentStep + 1} of 3</Text>
             </View>
-          </BlurView>
+          </GlassView>
         </Animated.View>
 
         <View style={styles.stepsContainer}>
@@ -156,11 +154,15 @@ export default function OnboardingScreen() {
                 activeOpacity={0.7}
                 style={styles.stepCardWrapper}
               >
-                <BlurView
-                  intensity={isDark ? 15 : 30}
+                <GlassView
+                  intensity={isDark ? 30 : 60}
+                  tint={isDark ? 'dark' : 'light'}
                   style={[
                     styles.stepCard,
-                    step.isCompleted && { borderColor: theme.success + '40' },
+                    step.isCompleted && { 
+                      borderColor: theme.success + '60',
+                      backgroundColor: theme.success + '08' 
+                    },
                     !step.isClickable && { opacity: 0.5 }
                   ]}
                 >
@@ -175,28 +177,49 @@ export default function OnboardingScreen() {
                     />
                   </View>
                   <View style={styles.stepInfo}>
-                    <Text style={[styles.stepTitle, { color: theme.text }]}>{step.title}</Text>
+                    <View style={styles.titleRow}>
+                      <Text style={[styles.stepTitle, { color: theme.text }]}>{step.title}</Text>
+                      {step.isCompleted && (
+                        <View style={[styles.completedBadge, { backgroundColor: theme.success + '20' }]}>
+                          <Text style={[styles.completedBadgeText, { color: theme.success }]}>COMPLETED</Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={[styles.stepDesc, { color: theme.icon }]}>{step.description}</Text>
                   </View>
                   {step.isCompleted ? (
-                    <CheckCircle size={28} color={theme.success} weight="fill" />
+                    <View style={styles.checkWrapper}>
+                      <View style={{ alignItems: 'center', gap: 4 }}>
+                        <CheckCircle size={24} color={theme.success} weight="fill" />
+                        <Text style={{ fontSize: 10, color: theme.primary, fontWeight: 'bold' }}>EDIT</Text>
+                      </View>
+                    </View>
                   ) : (
                     <CaretRight size={20} color={theme.icon} />
                   )}
-                </BlurView>
+                </GlassView>
               </TouchableOpacity>
             </Animated.View>
           ))}
         </View>
 
-        <Animated.View entering={FadeInUp.delay(1000).duration(600)} style={styles.supportCardWrapper}>
+      </ScrollView>
+
+      <GlassView intensity={80} tint={isDark ? 'dark' : 'light'} style={styles.stickyFooter}>
+        {status?.onboardingStatus === 'COMPLETED' || status?.onboardingStatus === 'VERIFIED' ? (
+          <PrimaryButton
+            title="Proceed to Dashboard"
+            onPress={() => router.replace('/(tabs)')}
+            style={{ borderRadius: 20 }}
+          />
+        ) : (
           <TouchableOpacity style={styles.supportCard}>
             <Text style={[styles.supportText, { color: theme.icon }]}>
               Need help? <Text style={{ color: theme.primary, fontWeight: '700' }}>Contact Support</Text>
             </Text>
           </TouchableOpacity>
-        </Animated.View>
-      </ScrollView>
+        )}
+      </GlassView>
     </View>
   );
 }
@@ -215,7 +238,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 24,
     paddingTop: 80,
-    paddingBottom: 40,
+    paddingBottom: 140,
   },
   topRow: {
     flexDirection: 'row',
@@ -324,7 +347,25 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: 17,
     fontWeight: '800',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 4,
+  },
+  completedBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  completedBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  checkWrapper: {
+    marginLeft: 12,
   },
   stepDesc: {
     fontSize: 13,
@@ -344,6 +385,17 @@ const styles = StyleSheet.create({
   supportText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  stickyFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
 });
 

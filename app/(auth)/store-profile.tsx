@@ -1,22 +1,23 @@
-import { PrimaryButton } from '@/components/PrimaryButton';
+import { getPersistentDeviceId } from '@/api/api';
+import { PhoneInput } from '@/components/PhoneInput';
+import { PremiumButton } from '@/components/ui/PremiumButton';
 import { Colors } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { submitStep1, getRestaurantStatus } from '@/store/slices/restaurantSlice';
 import { updateRestaurantToken } from '@/store/slices/authSlice';
+import { getRestaurantStatus, submitStep1, updateStep1 } from '@/store/slices/restaurantSlice';
 import { AppDispatch, RootState } from '@/store/store';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import {
-  CaretLeft,
-  MapPin,
-  Storefront,
   Buildings,
+  CaretLeft,
+  GpsFix,
+  MapPin,
   MapTrifold,
-  GpsFix
+  Storefront
 } from 'phosphor-react-native';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import MapView, { Region } from 'react-native-maps';
-import * as Location from 'expo-location';
-import { PhoneInput } from '@/components/PhoneInput';
 
 import {
   Alert,
@@ -28,8 +29,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-  ActivityIndicator
+  View
 } from 'react-native';
 
 import { useDispatch, useSelector } from 'react-redux';
@@ -62,8 +62,9 @@ export default function StoreProfileScreen() {
   const router = useRouter();
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
+  const isDark = colorScheme === 'dark';
   const dispatch = useDispatch<AppDispatch>();
-  const { loading, error } = useSelector((state: RootState) => state.restaurant);
+  const { status, loading, error } = useSelector((state: RootState) => state.restaurant);
   const { refreshToken } = useSelector((state: RootState) => state.auth);
 
   const [form, setForm] = useState({
@@ -74,9 +75,56 @@ export default function StoreProfileScreen() {
     landMark: '',
     area: '',
     city: '',
-    lat: 19.0760, 
+    lat: 19.0760,
     long: 72.8777,
   });
+
+  const hasPrefilled = useRef(false);
+  
+  // 1. Fetch current status on mount to ensure we have the latest data
+  useEffect(() => {
+    console.log('🔄 [StoreProfile] Screen mounted. Dispatching status fetch...');
+    dispatch(getRestaurantStatus());
+  }, []);
+
+  // 2. Prefill effect with "Breakpoint" logging
+  useEffect(() => {
+    if (status && !hasPrefilled.current) {
+      console.log('🚨 [StoreProfile Breakpoint] Pre-fill Candidate Found:', {
+        name: status.name,
+        existingFormName: form.name,
+        onboardingStep: status.onboardingStep
+      });
+
+      if (status.name) {
+        console.log('✅ [StoreProfile Breakpoint] Population START');
+        setForm(prev => ({
+          ...prev,
+          name: status.name || prev.name,
+          alternateNo: status.alternateNo || prev.alternateNo,
+          shopno: status.shopno || prev.shopno,
+          floor: status.floor || prev.floor,
+          landMark: status.landMark || prev.landMark,
+          area: status.area || prev.area,
+          city: status.city || prev.city,
+          lat: status.lat || prev.lat,
+          long: status.long || prev.long,
+        }));
+
+        // Update map region if location exists
+        if (status.lat && status.long) {
+          setMapRegion({
+            latitude: status.lat,
+            longitude: status.long,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          });
+        }
+        hasPrefilled.current = true;
+        console.log('✅ [StoreProfile Breakpoint] Population COMPLETE');
+      }
+    }
+  }, [status]);
 
   const [mapRegion, setMapRegion] = useState<Region>({
     latitude: 19.0760,
@@ -90,18 +138,37 @@ export default function StoreProfileScreen() {
   const [errors, setErrors] = useState<any>({});
 
   useEffect(() => {
-    (async () => {
+    // Wait for the restaurant status to be fetched before deciding to initialize GPS
+    const initializeLocation = async () => {
+      if (loading) {
+        console.log('⏳ [StoreProfile] Wait for status fetch before GPS init...');
+        return;
+      }
+
+      // If we have data, we are in Edit Mode. Skip GPS auto-fetch.
+      if (status?.name || (status?.lat && status?.lat !== 19.0760)) {
+        console.log('🛡️ [StoreProfile Guard] Edit Mode Detected. Saved data found. Skipping auto GPS.');
+        return;
+      }
+
+      console.log('📍 [StoreProfile] Fresh entry. Initiating initial location search...');
       const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
-      if (existingStatus !== 'granted') {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
+      
+      if (existingStatus === 'granted') {
+        // Only trigger full geocode if we haven't already filled from store
+        if (!status?.name) {
           handleGetCurrentLocation();
         }
       } else {
-        handleGetCurrentLocation();
+        const { status: reqStatus } = await Location.requestForegroundPermissionsAsync();
+        if (reqStatus === 'granted') {
+          handleGetCurrentLocation();
+        }
       }
-    })();
-  }, []);
+    };
+
+    initializeLocation();
+  }, [loading, status?.id]);
 
   const validate = () => {
     const newErrors: any = {};
@@ -110,7 +177,12 @@ export default function StoreProfileScreen() {
     if (!form.shopno) newErrors.shopno = 'Shop/Building number is required';
     if (!form.area) newErrors.area = 'Area/Locality is required';
     if (!form.city) newErrors.city = 'City is required';
-    
+
+    // LANDMARK VALIDATION: Exclude numeric characters as per requirements
+    if (form.landMark && /\d/.test(form.landMark)) {
+      newErrors.landMark = 'Landmark should not contain numbers';
+    }
+
     if (!form.lat || !form.long || (form.lat === 19.0760 && form.long === 72.8777)) {
       newErrors.location = 'Please pin your exact store location on the map';
     }
@@ -130,15 +202,43 @@ export default function StoreProfileScreen() {
 
       const location = await Location.getCurrentPositionAsync({});
       const { latitude, longitude } = location.coords;
-      setForm((prev) => ({ ...prev, lat: latitude, long: longitude }));
       
+      console.log('🛰️ [Location] Fetched current GPS position. Fetching address...');
+      
+      let addressData = {
+        area: '',
+        city: '',
+        landMark: ''
+      };
+
+      try {
+        const address = await Location.reverseGeocodeAsync({ latitude, longitude });
+        if (address && address.length > 0) {
+          const addr = address[0];
+          addressData = {
+            area: addr.district || addr.subregion || addr.city || '',
+            city: addr.city || addr.subregion || addr.region || '',
+            landMark: (addr.street || addr.name || '').replace(/[0-9]/g, ''),
+          };
+        }
+      } catch (geocodingErr) {
+        console.warn('[Location] Initial reverse geocoding failed:', geocodingErr);
+      }
+
+      setForm((prev) => ({ 
+        ...prev, 
+        lat: latitude, 
+        long: longitude,
+        ...addressData
+      }));
+
       const newRegion = {
         latitude,
         longitude,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       };
-      
+
       setMapRegion(newRegion);
       mapRef.current?.animateToRegion(newRegion, 1000);
     } catch (err) {
@@ -150,46 +250,91 @@ export default function StoreProfileScreen() {
 
   const onRegionChangeComplete = async (region: Region) => {
     const { latitude, longitude } = region;
-    setForm((prev) => ({ ...prev, lat: latitude, long: longitude }));
-    setMapRegion(region);
+    
+    // Only clear and re-geocode if the change is significant (to avoid clearing on tiny shakes)
+    const latDiff = Math.abs(latitude - form.lat);
+    const lngDiff = Math.abs(longitude - form.long);
+    
+    if (latDiff > 0.0001 || lngDiff > 0.0001) {
+      console.log('📍 [Location] Position changed significantly. Resetting address fields.');
+      setForm((prev) => ({ 
+        ...prev, 
+        lat: latitude, 
+        long: longitude,
+        area: '', 
+        city: '', 
+        landMark: '' 
+      }));
+      setMapRegion(region);
 
-    try {
-      const address = await Location.reverseGeocodeAsync({ latitude, longitude });
-      if (address && address.length > 0) {
-        const addr = address[0];
-        setForm((prev) => ({
-          ...prev,
-          area: addr.district || addr.subregion || prev.area,
-          city: addr.city || addr.subregion || prev.city,
-          landMark: addr.street || prev.landMark,
-        }));
+      try {
+        const address = await Location.reverseGeocodeAsync({ latitude, longitude });
+        if (address && address.length > 0) {
+          const addr = address[0];
+          setForm((prev) => ({
+            ...prev,
+            area: addr.district || addr.subregion || addr.city || '',
+            city: addr.city || addr.subregion || addr.region || '',
+            landMark: (addr.street || addr.name || '').replace(/[0-9]/g, ''),
+          }));
+        }
+      } catch (err) {
+        console.warn('[Location] Reverse geocoding failed:', err);
       }
-    } catch (err) {
-      console.warn('[Location] Reverse geocoding failed:', err);
+    } else {
+      // Just update coordinates and region without clearing address
+      setForm((prev) => ({ ...prev, lat: latitude, long: longitude }));
+      setMapRegion(region);
     }
   };
 
   const handleSubmit = async () => {
     if (!validate()) return;
 
-    const result = await dispatch(submitStep1(form));
-    if (submitStep1.fulfilled.match(result)) {
+    // BUILD WHITELISTED PAYLOAD: Only send recognized fields
+    const apiPayload = {
+      name: form.name,
+      alternateNo: form.alternateNo,
+      lat: form.lat,
+      long: form.long,
+      area: form.area,
+      city: form.city,
+      shopno: form.shopno,
+      floor: form.floor,
+      landMark: form.landMark
+    };
+
+    console.log(`🚀 [Onboarding Step 1] ${status?.onboardingStep && status.onboardingStep >= 1 ? 'Updating' : 'Submitting'} Payload:`, JSON.stringify(apiPayload, null, 2));
+    
+    let result: any;
+    // Decide between POST (submit) or PUT (update)
+    // If we have an existing ID and a name, we should UPDATE.
+    // If it's a fresh submission for this restaurant ID, we should SUBMIT.
+    if (status?.id && status?.name) {
+      console.log('🔄 [StoreProfile] Existing record found. Calling Update (PUT)...');
+      result = await dispatch(updateStep1(apiPayload));
+    } else {
+      console.log('🚀 [StoreProfile] No existing record. Calling Submit (POST)...');
+      result = await dispatch(submitStep1(apiPayload));
+    }
+
+    if (submitStep1.fulfilled.match(result) || updateStep1.fulfilled.match(result)) {
       // PERFORM HANDSHAKE
       const restaurantId = result.payload?.data?.restaurantId || result.payload?.restaurantId;
       if (restaurantId) {
-          console.log(`🚀 [Handshake] Step 1 success. Initiating handshake for Restaurant: ${restaurantId}`);
-          const handshakeResult = await dispatch(updateRestaurantToken({
-              refreshToken: refreshToken || '', 
-              deviceId: 'APP_DEVICE_ID', 
-              restaurantId
-          }));
-          
-          if (updateRestaurantToken.fulfilled.match(handshakeResult)) {
-              console.log('✅ [Handshake] Success. Refreshing status with new scoped token.');
-              await dispatch(getRestaurantStatus());
-          }
+        console.log(`🚀 [Handshake] Step 1 success. Initiating handshake for Restaurant: ${restaurantId}`);
+        const handshakeResult = await dispatch(updateRestaurantToken({
+          restaurantId
+        }));
+
+        if (updateRestaurantToken.fulfilled.match(handshakeResult)) {
+          console.log('✅ [Handshake] Success. Refreshing status with new scoped token.');
+          await dispatch(getRestaurantStatus());
+        } else {
+          console.error('❌ [Handshake] Failed. Staying on profile page.');
+          Alert.alert('Session Error', 'Handshake failed. Please try saving again.');
+        }
       }
-      router.replace('/(auth)/onboarding');
     }
   };
 
@@ -198,8 +343,8 @@ export default function StoreProfileScreen() {
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={[styles.backButton, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary }]} 
+        <TouchableOpacity
+          style={[styles.backButton, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary }]}
           onPress={() => router.back()}
         >
           <CaretLeft size={22} color={theme.text} weight="bold" />
@@ -221,7 +366,7 @@ export default function StoreProfileScreen() {
             icon={Storefront}
             error={errors.name}
           />
-          
+
           <PhoneInput
             label="Secondary/Alt Number"
             value={form.alternateNo}
@@ -230,7 +375,7 @@ export default function StoreProfileScreen() {
           />
 
           <View style={[styles.sectionDivider, { backgroundColor: theme.border }]} />
-          
+
           <FormInput
             value={form.shopno}
             onChangeText={(val: string) => setForm({ ...form, shopno: val })}
@@ -248,7 +393,7 @@ export default function StoreProfileScreen() {
 
           <FormInput
             value={form.landMark}
-            onChangeText={(val: string) => setForm({ ...form, landMark: val })}
+            onChangeText={(val: string) => setForm({ ...form, landMark: val.replace(/[0-9]/g, '') })}
             placeholder="Landmark (Optional)"
             icon={MapPin}
           />
@@ -281,7 +426,7 @@ export default function StoreProfileScreen() {
             <View style={styles.centerPinContainer} pointerEvents="none">
               <MapPin size={32} color={theme.primary} weight="fill" />
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.currentLocationFab, { backgroundColor: theme.surface, borderColor: theme.border }]}
               onPress={handleGetCurrentLocation}
               disabled={isLocationLoading}
@@ -291,15 +436,16 @@ export default function StoreProfileScreen() {
           </View>
 
           {error && <Text style={[styles.globalError, { color: theme.error }]}>{error}</Text>}
-
-          <View style={styles.footer}>
-            <PrimaryButton
-              title={loading ? 'SAVING...' : 'Save & Continue'}
-              onPress={handleSubmit}
-              loading={loading}
-            />
-          </View>
         </ScrollView>
+
+        <View style={[styles.footer, { backgroundColor: theme.background, borderTopColor: theme.border }]}>
+          <PremiumButton
+            label={loading ? 'SAVING...' : 'Save & Continue'}
+            onPress={handleSubmit}
+            isLoading={loading}
+            variant="primary"
+          />
+        </View>
       </KeyboardAvoidingView>
     </View>
   );
@@ -316,7 +462,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 20, fontWeight: '700', marginLeft: 16 },
   backButton: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 140 },
   infoBox: { marginBottom: 20, marginTop: 10 },
   infoTitle: { fontSize: 18, fontWeight: '700' },
   infoSubtitle: { fontSize: 13, marginTop: 4, fontWeight: '500' },
@@ -326,10 +472,27 @@ const styles = StyleSheet.create({
   input: { flex: 1, paddingHorizontal: 12, fontSize: 15, fontWeight: '600' },
   errorText: { fontSize: 11, fontWeight: '600', marginTop: 4, marginLeft: 8 },
   sectionDivider: { height: 1, marginVertical: 24, opacity: 0.3 },
-  mapWrapper: { height: 250, borderRadius: 20, borderWidth: 1.5, overflow: 'hidden', marginVertical: 20, position: 'relative' },
+  mapWrapper: {
+    height: 250,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    overflow: Platform.OS === 'ios' ? 'hidden' : 'visible',
+    marginVertical: 20,
+    position: 'relative'
+  },
   map: { ...StyleSheet.absoluteFillObject },
   centerPinContainer: { position: 'absolute', top: '50%', left: '50%', marginLeft: -16, marginTop: -32 },
   currentLocationFab: { position: 'absolute', bottom: 12, right: 12, width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
   globalError: { textAlign: 'center', marginVertical: 10, fontWeight: '600' },
-  footer: { marginTop: 20 },
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
 });

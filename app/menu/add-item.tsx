@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, SafeAreaView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CaretLeft, CaretRight, Plus } from 'phosphor-react-native';
+import { CaretLeft, CaretRight, Plus, FolderOpen } from 'phosphor-react-native';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -38,21 +39,30 @@ export default function AddItemCategoryScreen() {
         </ThemedText>
 
         <View style={[styles.listContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          {categories.map((cat, index) => (
-            <Pressable
-              key={cat.id}
-              style={({ pressed }) => [
-                styles.row,
-                { borderBottomColor: theme.border },
-                index === categories.length - 1 && { borderBottomWidth: 0 },
-                pressed && { backgroundColor: theme.surfaceSecondary }
-              ]}
-              onPress={() => router.push({ pathname: '/menu/choose-sub-category', params: { categoryId: cat.id, categoryName: cat.name } })}
-            >
-              <ThemedText style={[styles.rowText, { color: theme.text }]}>{cat.name}</ThemedText>
-              <CaretRight size={20} color={theme.textSecondary} />
-            </Pressable>
-          ))}
+          {categories.length > 0 ? (
+            categories.map((cat, index) => (
+              <Pressable
+                key={cat.id}
+                style={({ pressed }) => [
+                  styles.row,
+                  { borderBottomColor: theme.border },
+                  index === categories.length - 1 && { borderBottomWidth: 0 },
+                  pressed && { backgroundColor: theme.surfaceSecondary }
+                ]}
+                onPress={() => router.push({ pathname: '/menu/choose-sub-category', params: { categoryId: cat.id, categoryName: cat.name } })}
+              >
+                <ThemedText style={[styles.rowText, { color: theme.text }]}>{cat.name}</ThemedText>
+                <CaretRight size={20} color={theme.textSecondary} />
+              </Pressable>
+            ))
+          ) : (
+            <EmptyState
+              icon={FolderOpen}
+              title="No Categories"
+              description="You need at least one category to add items. Create your first one below."
+              style={{ paddingVertical: 20 }}
+            />
+          )}
         </View>
 
         <Pressable

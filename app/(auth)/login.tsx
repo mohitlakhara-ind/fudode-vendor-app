@@ -20,6 +20,7 @@ import { PhoneInput } from '@/components/PhoneInput';
 import { MeshGradient } from '@/components/ui/MeshGradient';
 import { PremiumButton } from '@/components/ui/PremiumButton';
 import { requestOtp } from '@/store/slices/authSlice';
+import { GlassView } from '@/components/ui/GlassView';
 
 const { width } = Dimensions.get('window');
 
@@ -112,17 +113,7 @@ export default function LoginScreen() {
                 />
               </View>
 
-              <PremiumButton
-                label={loading ? 'Verifying...' : 'Get OTP'}
-                onPress={handleContinue}
-                isLoading={loading}
-                disabled={phoneNumber.length !== 10}
-                variant="primary"
-                size="large"
-                isPulsing={phoneNumber.length === 10 && !loading}
-              />
-
-              <View style={styles.footer}>
+              <View style={styles.termsFooter}>
                 <Text style={[styles.footerText, { color: theme.textSecondary }]}>
                   By proceeding, you agree to our{' '}
                   <Text style={{ color: theme.primary, fontWeight: '600' }}>Terms of Service</Text>
@@ -132,6 +123,18 @@ export default function LoginScreen() {
               </View>
             </View>
           </View>
+
+          <GlassView intensity={80} tint={isDark ? 'dark' : 'light'} style={styles.stickyFooter}>
+            <PremiumButton
+              label={loading ? 'Verifying...' : 'Get OTP'}
+              onPress={handleContinue}
+              isLoading={loading}
+              disabled={phoneNumber.length !== 10}
+              variant="primary"
+              size="large"
+              isPulsing={phoneNumber.length === 10 && !loading}
+            />
+          </GlassView>
         </KeyboardAvoidingView>
       </View>
     </TouchableWithoutFeedback>
@@ -204,8 +207,8 @@ const styles = StyleSheet.create({
   inputWrapper: {
     marginBottom: 24,
   },
-  footer: {
-    marginTop: 40,
+  termsFooter: {
+    marginTop: 20,
     alignItems: 'center',
   },
   footerText: {
@@ -213,5 +216,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     paddingHorizontal: 30,
+  },
+  stickyFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
 });

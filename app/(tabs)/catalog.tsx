@@ -1,56 +1,95 @@
-import React, { useState } from 'react';
-import {
-  StyleSheet,
-  View,
-  ScrollView,
-  Pressable,
-  StatusBar,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  DotsThreeVertical,
-  Plus,
-  List,
-} from 'phosphor-react-native';
-import { useAppTheme } from '@/contexts/ThemeContext';
-import { Colors, Typography } from '@/constants/theme';
-import { MOCK_INVENTORY } from '@/constants/mockInventory';
+import { GlobalRestaurantHeader } from '@/components/common/GlobalRestaurantHeader';
 import { ThemedText } from '@/components/themed-text';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
-import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
-import { RestaurantSwitcher } from '@/components/orders/RestaurantSwitcher';
-import { useSelector } from 'react-redux';
+import { Colors } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { fetchCategories, fetchItems, updateItemStatus } from '@/store/slices/menuSlice';
 import { RootState } from '@/store/store';
 import { useRouter } from 'expo-router';
+import {
+  BookOpen,
+  List,
+  Plus
+} from 'phosphor-react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Extracted Components
-import { PhotoPromoBanner } from '@/components/menu/PhotoPromoBanner';
-import { MenuCategory } from '@/components/menu/MenuCategory';
 import { MarkOutOfStockSheet } from '@/components/inventory/MarkOutOfStockSheet';
-import { CategoriesBottomSheet } from '@/components/menu/CategoriesBottomSheet';
 import { AddItemActionSheet } from '@/components/menu/AddItemActionSheet';
+import { CategoriesBottomSheet } from '@/components/menu/CategoriesBottomSheet';
+import { MenuCategory } from '@/components/menu/MenuCategory';
+import { PhotoPromoBanner } from '@/components/menu/PhotoPromoBanner';
 import { SearchBar } from '@/components/orders/SearchBar';
 import { InventoryCategory } from '@/constants/mockInventory';
-
-const OWNED_RESTAURANTS = [
-  { id: '1', name: 'Muggs Cafe', locality: 'Balotra Locality' },
-  { id: '2', name: 'Pizza Palace', locality: 'HSR Layout, Bangalore' },
-];
 
 export default function CatalogScreen() {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const dispatch = useAppDispatch();
+
   const [activeTab, setActiveTab] = useState('All items');
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategoryId, setActiveCategoryId] = useState(MOCK_INVENTORY[0].id);
-  const [inventory, setInventory] = useState<InventoryCategory[]>(MOCK_INVENTORY);
-  const [isOnline, setIsOnline] = useState(true);
-  const [currentRestaurant, setCurrentRestaurant] = useState(OWNED_RESTAURANTS[0]);
-  const [isSwitcherVisible, setIsSwitcherVisible] = useState(false);
-  const { queue } = useSelector((state: RootState) => state.order);
+
+  const { categories, items, loading } = useAppSelector((state: RootState) => state.menu);
+  const { status: restaurantStatus } = useAppSelector((state: RootState) => state.restaurant);
+  const { queue } = useAppSelector((state: RootState) => state.order);
+
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+
+  // Initial Data Fetch
+  useEffect(() => {
+    dispatch(fetchCategories());
+    // No more blind fetchItems({}) that causes 500
+  }, [dispatch]);
+
+  // Fetch items for the first category once categories load
+  useEffect(() => {
+    if (categories && categories.length > 0 && items.length === 0 && !loading) {
+      dispatch(fetchItems({ categoryId: categories[0].id }));
+    }
+  }, [categories, dispatch, loading, items.length]);
+
+  // Map and group items by category
+  const inventory: InventoryCategory[] = useMemo(() => {
+    if (!categories || !Array.isArray(categories)) return [];
+
+    return categories.map(cat => ({
+      id: cat.id,
+      name: cat.name,
+      subtitle: '',
+      isActive: true,
+      items: items
+        .filter(item => item.categoryId === cat.id)
+        .map(item => ({
+          id: item.id,
+          name: item.name,
+          isVeg: item.foodType === 'VEG',
+          isInStock: item.status === 'AVAILABLE',
+          price: item.variants?.[0]?.price || 0,
+          description: item.description,
+          status: (item.status === 'AVAILABLE' ? 'live' : 'not-live') as 'live' | 'not-live',
+        }))
+    }));
+  }, [categories, items]);
+
+  useEffect(() => {
+    if (inventory.length > 0 && !activeCategoryId) {
+      setActiveCategoryId(inventory[0].id);
+    }
+  }, [inventory, activeCategoryId]);
 
   // Bottom Sheet States
   const [showStockSheet, setShowStockSheet] = useState(false);
@@ -61,68 +100,30 @@ export default function CatalogScreen() {
   const [addItemSheetVisible, setAddItemSheetVisible] = useState(false);
 
   const handleToggleCategory = (catId: string, isActive: boolean) => {
-    const category = inventory.find(c => c.id === catId);
-    if (!isActive && category) { // Turning OFF
-      setActiveCategory(category);
-      setSheetType('subcategory');
-      setShowStockSheet(true);
-      return;
-    }
-    // Turning ON
-    setInventory(prev => prev.map(cat => 
-      cat.id === catId ? { 
-        ...cat, 
-        isActive: true,
-        items: cat.items.map(i => ({ ...i, isInStock: true }))
-      } : cat
-    ));
+    // Category-wide toggle logic can go here if needed
+    console.log('Toggle category:', catId, isActive);
   };
 
   const handleToggleItemStatus = (catId: string, itemId: string, isInStock: boolean) => {
-    const category = inventory.find(c => c.id === catId);
-    const item = category?.items.find(i => i.id === itemId);
-
-    if (!isInStock && item) { // Turning OFF
+    const item = items.find(i => i.id === itemId);
+    if (!isInStock && item) { // Turning OFF/Pausing
       setActiveItem({ ...item, catId });
       setSheetType('item');
       setShowStockSheet(true);
       return;
     }
+
     // Turning ON
-    setInventory(prev => prev.map(cat => {
-      if (cat.id !== catId) return cat;
-      return {
-        ...cat,
-        isActive: true,
-        items: cat.items.map(i => i.id === itemId ? { ...i, isInStock: true } : i)
-      };
-    }));
+    dispatch(updateItemStatus({ id: itemId, status: 'AVAILABLE' }));
   };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
-      
-      <RestaurantHeader
-        restaurantName={currentRestaurant.name}
-        locality={currentRestaurant.locality}
-        isOnline={isOnline}
-        onToggleStatus={() => setIsOnline(!isOnline)}
-        onPressInfo={() => setIsSwitcherVisible(true)}
-      />
 
-      <RestaurantSwitcher
-        visible={isSwitcherVisible}
-        onClose={() => setIsSwitcherVisible(false)}
-        restaurants={OWNED_RESTAURANTS}
-        selectedId={currentRestaurant.id}
-        onSelect={(res) => {
-          setCurrentRestaurant(res);
-          setIsSwitcherVisible(false);
-        }}
-      />
+      <GlobalRestaurantHeader />
 
-      <ScrollView 
+      <ScrollView
         stickyHeaderIndices={[2]}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: queue.length > 0 ? 220 : 100 }}
@@ -132,17 +133,17 @@ export default function CatalogScreen() {
         {/* Unified Search & Filters */}
         <View style={[styles.headerActions, { backgroundColor: theme.background }]}>
           <View style={styles.topSearchRow}>
-            <SearchBar 
+            <SearchBar
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder="Search items, categories..."
-              onFilterPress={() => {}}
+              onFilterPress={() => { }}
               containerStyle={{ flex: 1 }}
             />
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickFilters}>
             {['All', 'Not Live', 'Out of Stock', 'Veg Only'].map(filter => (
-              <Pressable 
+              <Pressable
                 key={filter}
                 onPress={() => setActiveFilter(filter.toLowerCase())}
                 style={[
@@ -166,20 +167,31 @@ export default function CatalogScreen() {
         />
 
         {/* Menu Categories */}
-        {inventory.map(category => (
-          <MenuCategory 
-            key={category.id} 
-            category={category} 
-            onToggleCategory={handleToggleCategory}
-            onToggleItemStock={handleToggleItemStatus}
-            onEditItem={(item, cat) => {
-              router.push({
-                pathname: '/menu/item-details',
-                params: { categoryName: cat.name, subCategoryName: 'Edit Item', itemId: item.id }
-              } as any);
-            }}
+        {inventory.length > 0 ? (
+          inventory.map(category => (
+            <MenuCategory
+              key={category.id}
+              category={category}
+              onToggleCategory={handleToggleCategory}
+              onToggleItemStock={handleToggleItemStatus}
+              onEditItem={(item, cat) => {
+                router.push({
+                  pathname: '/menu/item-details',
+                  params: { categoryName: cat.name, subCategoryName: 'Edit Item', itemId: item.id }
+                } as any);
+              }}
+            />
+          ))
+        ) : (
+          <EmptyState
+            icon={BookOpen}
+            title="Your Menu is Empty"
+            description="Start by adding your first category and item to show up on the customer app."
+            actionLabel="Add First Item"
+            onAction={() => router.push('/menu/add-item' as any)}
+            style={{ marginTop: 40, marginBottom: 100 }}
           />
-        ))}
+        )}
       </ScrollView>
 
       <MarkOutOfStockSheet
@@ -191,30 +203,9 @@ export default function CatalogScreen() {
         onConfirm={(data) => {
           console.log('Catalog marking out of stock:', data);
           if (sheetType === 'item') {
-            setInventory(prev => prev.map(cat => {
-              if (cat.id !== activeItem.catId) return cat;
-              
-              const updatedItems = cat.items.map(i =>
-                i.id === activeItem.id ? { ...i, isInStock: false } : i
-              );
-
-              // If all items are now out of stock, turn OFF the category
-              const allOutOfStock = updatedItems.every(i => !i.isInStock);
-
-              return {
-                ...cat,
-                isActive: allOutOfStock ? false : cat.isActive,
-                items: updatedItems
-              };
-            }));
+            dispatch(updateItemStatus({ id: activeItem.id, status: 'SOLD_OUT' }));
           } else {
-            setInventory(prev => prev.map(cat =>
-              cat.id === activeCategory.id ? { 
-                ...cat, 
-                isActive: false,
-                items: cat.items.map(i => ({ ...i, isInStock: false })) 
-              } : cat
-            ));
+            // Category logic not yet fully implemented in slice but we can call multiple updateItemStatus if needed
           }
           setShowStockSheet(false);
         }}
@@ -223,9 +214,9 @@ export default function CatalogScreen() {
       <CategoriesBottomSheet
         visible={categoriesSheetVisible}
         categories={inventory.map(c => ({ id: c.id, name: c.name, count: c.items.length }))}
-        activeCategoryId={activeCategoryId}
+        activeCategoryId={activeCategoryId || ''}
         onClose={() => setCategoriesSheetVisible(false)}
-        onSelectCategory={setActiveCategoryId}
+        onSelectCategory={(id) => setActiveCategoryId(id)}
       />
 
       <AddItemActionSheet
@@ -238,22 +229,24 @@ export default function CatalogScreen() {
 
       {/* Floating Actions */}
       <View style={[styles.floatingActionsWrapper, { bottom: queue.length > 0 ? 220 : 120 }]}>
-        <Pressable 
-          onPress={() => setCategoriesSheetVisible(true)}
-          style={({ pressed }) => [
-            styles.categoryFab, 
-            styles.shadowLarge,
-            { backgroundColor: theme.surface, borderColor: theme.border, transform: [{ scale: pressed ? 0.9 : 1 }] }
-          ]}
-        >
-          <List size={22} color={theme.text} weight="bold" />
-          <ThemedText style={[styles.categoryFabText, { color: theme.text }]}>Categories</ThemedText>
-        </Pressable>
+        {categories && categories.length > 0 && (
+          <Pressable
+            onPress={() => setCategoriesSheetVisible(true)}
+            style={({ pressed }) => [
+              styles.categoryFab,
+              styles.shadowLarge,
+              { backgroundColor: theme.surface, borderColor: theme.border, transform: [{ scale: pressed ? 0.9 : 1 }] }
+            ]}
+          >
+            <List size={22} color={theme.text} weight="bold" />
+            <ThemedText style={[styles.categoryFabText, { color: theme.text }]}>Categories</ThemedText>
+          </Pressable>
+        )}
 
-        <Pressable 
+        <Pressable
           onPress={() => setAddItemSheetVisible(true)}
           style={({ pressed }) => [
-            styles.addFab, 
+            styles.addFab,
             styles.shadowLarge,
             { backgroundColor: theme.text, transform: [{ scale: pressed ? 0.95 : 1 }] }
           ]}

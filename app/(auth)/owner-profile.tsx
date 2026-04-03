@@ -1,10 +1,13 @@
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Colors } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { submitOwnerProfile, getRestaurantStatus } from '@/store/slices/restaurantSlice';
+import { submitOwnerProfile, updateOwnerProfile, getRestaurantStatus, markOwnerProfileComplete } from '@/store/slices/restaurantSlice';
 import { AppDispatch, RootState } from '@/store/store';
+import { GlassView } from '@/components/ui/GlassView';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { updateRestaurantToken } from '@/store/slices/authSlice';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   CaretLeft,
   User,
@@ -13,9 +16,8 @@ import {
   PlusCircle,
   Camera,
   CheckCircle,
-  Phone
 } from 'phosphor-react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Alert,
   Image,
@@ -60,13 +62,13 @@ export default function OwnerIdentityScreen() {
   const router = useRouter();
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
-  const dispatch = useDispatch<AppDispatch>();
-  const { loading, error } = useSelector((state: RootState) => state.restaurant);
+  const isDark = colorScheme === 'dark';
+  const dispatch = useAppDispatch();
+  const { status, loading, error, selectedRestaurantId } = useAppSelector((state: RootState) => state.restaurant);
 
   const [form, setForm] = useState({
     name: '',
     email: '',
-    alternateNo: '',
     aadhaarNo: '',
   });
 
@@ -77,10 +79,42 @@ export default function OwnerIdentityScreen() {
   });
 
   const [errors, setErrors] = useState<any>({});
+  const isUpdateMode = !!status?.profileData?.isOwnerProfileComplete;
+  const hasPrefilled = useRef(false);
+
+  // 1. Fetch current status on mount
+  useEffect(() => {
+    console.log('🔄 [OwnerProfile] Screen mounted. Dispatching status fetch...');
+    dispatch(getRestaurantStatus());
+  }, []);
+
+  // 2. Prefill effect with "Breakpoint" logging
+  useEffect(() => {
+    if (status?.profileData && !hasPrefilled.current) {
+      console.log('🚨 [OwnerProfile Breakpoint] Pre-fill Candidate Found:', {
+        name: status.profileData.name,
+        hasStatus: !!status.profileData
+      });
+
+      console.log('✅ [OwnerProfile Breakpoint] Population START');
+      setForm({
+        name: status.profileData.name || '',
+        email: status.profileData.email || '',
+        aadhaarNo: status.profileData.aadhaarNo || '',
+      });
+      setImages({
+        avatar: status.profileData.avatarUrl || null,
+        aadhaarFront: status.profileData.aadhaarFrontUrl || null,
+        aadhaarBack: status.profileData.aadhaarBackUrl || null,
+      });
+      hasPrefilled.current = true;
+      console.log('✅ [OwnerProfile Breakpoint] Population COMPLETE');
+    }
+  }, [status]);
 
   const pickImage = async (key: string) => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       allowsEditing: true,
       quality: 0.7,
     });
@@ -94,7 +128,6 @@ export default function OwnerIdentityScreen() {
     const newErrors: any = {};
     if (!form.name) newErrors.name = 'Full Name is required';
     if (!form.email || !form.email.includes('@')) newErrors.email = 'Valid email is required';
-    if (!form.alternateNo || form.alternateNo.length !== 10) newErrors.alternateNo = 'Valid 10-digit number is required';
     if (!form.aadhaarNo || form.aadhaarNo.length !== 12) newErrors.aadhaarNo = 'Valid 12-digit Aadhaar is required';
     
     if (!images.avatar || !images.aadhaarFront || !images.aadhaarBack) {
@@ -119,38 +152,39 @@ export default function OwnerIdentityScreen() {
     const formData = new FormData();
     formData.append('name', form.name);
     formData.append('email', form.email);
-    formData.append('alternateNo', form.alternateNo);
     formData.append('aadhaarNo', form.aadhaarNo);
 
-    // Append images
-    if (images.avatar) {
-      formData.append('avatar', {
-        uri: images.avatar,
-        name: 'avatar.jpg',
-        type: 'image/jpeg',
-      } as any);
-    }
-    
-    formData.append('aadhaarFront', {
-      uri: images.aadhaarFront,
-      name: 'aadhaar_front.jpg',
-      type: 'image/jpeg',
-    } as any);
+    // Helper to append image only if it's local (newly picked)
+    const appendImageIfLocal = (key: string, uri: string | null, name: string) => {
+      if (uri && !uri.startsWith('http')) {
+        formData.append(key, {
+          uri,
+          name,
+          type: 'image/jpeg',
+        } as any);
+      }
+    };
 
-    formData.append('aadhaarBack', {
-      uri: images.aadhaarBack,
-      name: 'aadhaar_back.jpg',
-      type: 'image/jpeg',
-    } as any);
+    appendImageIfLocal('avatar', images.avatar, 'avatar.jpg');
+    appendImageIfLocal('aadhaarFront', images.aadhaarFront, 'aadhaar_front.jpg');
+    appendImageIfLocal('aadhaarBack', images.aadhaarBack, 'aadhaar_back.jpg');
 
-    const result = await dispatch(submitOwnerProfile(formData));
-    if (submitOwnerProfile.fulfilled.match(result)) {
-      // Small delay to allow the backend to process the update and invalidate its cache
-      console.log('⏳ [handleSubmit] Waiting 1.5s for backend catch-up...');
-      setTimeout(async () => {
-        await dispatch(getRestaurantStatus());
-        router.replace('/(auth)/onboarding');
-      }, 1500);
+    const result = isUpdateMode 
+      ? await dispatch(updateOwnerProfile(formData))
+      : await dispatch(submitOwnerProfile(formData));
+    if ((isUpdateMode ? updateOwnerProfile.fulfilled.match(result) : submitOwnerProfile.fulfilled.match(result))) {
+      console.log(`✅ [handleSubmit] Profile ${isUpdateMode ? 'updated' : 'submitted'} successfully`);
+      
+      // Perform handshake if a restaurant context already exists
+      const restaurantId = status?.id || selectedRestaurantId;
+      if (restaurantId) {
+        console.log(`🚀 [Handshake] Profiling sync. Updating token for Restaurant: ${restaurantId}`);
+        await dispatch(updateRestaurantToken({ restaurantId }));
+      }
+
+      // Hard-mark locally complete before refreshing to ward off stale caches
+      dispatch(markOwnerProfileComplete());
+      await dispatch(getRestaurantStatus());
     }
   };
 
@@ -199,15 +233,6 @@ export default function OwnerIdentityScreen() {
             icon={Envelope}
             keyboardType="email-address"
             error={errors.email}
-          />
-
-          <FormInput
-            value={form.alternateNo}
-            onChangeText={(val: string) => setForm({ ...form, alternateNo: val.replace(/\D/g, '') })}
-            placeholder="Alternate Mobile Number"
-            icon={Phone}
-            keyboardType="numeric"
-            error={errors.alternateNo}
           />
 
           <FormInput
@@ -264,16 +289,16 @@ export default function OwnerIdentityScreen() {
           </View>
 
           {error && <Text style={[styles.globalError, { color: theme.error }]}>{error}</Text>}
-
-          <View style={styles.footer}>
-            <PrimaryButton
-              title={loading ? 'SUBMITTING...' : 'Verify & Continue'}
-              onPress={handleSubmit}
-              loading={loading}
-              style={{ borderRadius: 18 }}
-            />
-          </View>
         </ScrollView>
+
+        <GlassView intensity={80} tint={isDark ? 'dark' : 'light'} style={styles.footer}>
+          <PrimaryButton
+            title={loading ? 'SUBMITTING...' : 'Verify & Continue'}
+            onPress={handleSubmit}
+            loading={loading}
+            style={{ borderRadius: 18 }}
+          />
+        </GlassView>
       </KeyboardAvoidingView>
     </View>
   );
@@ -288,7 +313,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: { fontSize: 24, fontWeight: '800' },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 140 },
   avatarSection: { alignItems: 'center', marginBottom: 30 },
   avatarWrapper: { width: 100, height: 100, borderRadius: 50, borderWidth: 2, justifyContent: 'center', alignItems: 'center', position: 'relative' },
   avatar: { width: '100%', height: '100%', borderRadius: 50 },
@@ -310,5 +335,16 @@ const styles = StyleSheet.create({
   docLabel: { fontSize: 12, marginTop: 8, fontWeight: '600' },
   doneBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: '#fff', borderRadius: 10 },
   globalError: { textAlign: 'center', marginVertical: 10, fontWeight: '600' },
-  footer: { marginTop: 20 },
+  footer: { 
+    position: 'absolute', 
+    bottom: 0, 
+    left: 0, 
+    right: 0, 
+    paddingHorizontal: 24, 
+    paddingTop: 20, 
+    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    overflow: 'hidden'
+  },
 });

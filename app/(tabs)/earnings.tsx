@@ -1,4 +1,4 @@
-import { Colors, Typography } from '@/constants/theme';
+import { Colors, Typography, Fonts, StatusColors } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -13,17 +13,16 @@ import {
   Question,
   Receipt,
   SpeakerHigh,
+  CurrencyCircleDollar
 } from 'phosphor-react-native';
-import React, { useState } from 'react';
+import { EmptyState } from '@/components/ui/EmptyState';
+import React, { useState, useMemo, useEffect } from 'react';
 import { DateRangePickerSheet } from '@/components/common/DateRangePickerSheet';
 import { ReportFormatSheet } from '@/components/common/ReportFormatSheet';
 import { FilterSheet } from '@/components/common/FilterSheet';
 import { ThemedText } from '@/components/themed-text';
-import { Fonts } from '@/constants/theme';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
-import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
-import { RestaurantSwitcher } from '@/components/orders/RestaurantSwitcher';
-import { StatusColors } from '@/constants/theme';
+import { GlobalRestaurantHeader } from '@/components/common/GlobalRestaurantHeader';
 import {
   Dimensions,
   Pressable,
@@ -36,11 +35,6 @@ import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
 
 const { width } = Dimensions.get('window');
-
-const OWNED_RESTAURANTS = [
-  { id: '1', name: 'Muggs Cafe', locality: 'Balotra Locality' },
-  { id: '2', name: 'Pizza Palace', locality: 'HSR Layout, Bangalore' },
-];
 
 const PayoutCard = ({ amount, dateRange, orders }: any) => {
   const { colorScheme } = useAppTheme();
@@ -110,10 +104,9 @@ export default function EarningsScreen() {
   const theme = Colors[colorScheme];
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  
+  const { status: restaurantStatus } = useSelector((state: RootState) => state.restaurant);
   const [activeTab, setActiveTab] = useState('Payouts');
-  const [isOnline, setIsOnline] = useState(true);
-  const [currentRestaurant, setCurrentRestaurant] = useState(OWNED_RESTAURANTS[0]);
-  const [isSwitcherVisible, setIsSwitcherVisible] = useState(false);
   const { queue } = useSelector((state: RootState) => state.order);
   
   // Bottom Sheet States
@@ -123,24 +116,7 @@ export default function EarningsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
-      <RestaurantHeader
-        restaurantName={currentRestaurant.name}
-        locality={currentRestaurant.locality}
-        isOnline={isOnline}
-        onToggleStatus={() => setIsOnline(!isOnline)}
-        onPressInfo={() => setIsSwitcherVisible(true)}
-      />
-
-      <RestaurantSwitcher
-        visible={isSwitcherVisible}
-        onClose={() => setIsSwitcherVisible(false)}
-        restaurants={OWNED_RESTAURANTS}
-        selectedId={currentRestaurant.id}
-        onSelect={(res) => {
-          setCurrentRestaurant(res);
-          setIsSwitcherVisible(false);
-        }}
-      />
+      <GlobalRestaurantHeader />
 
       <TabSwitcher
         tabs={['Payouts', 'Invoices & Taxes']}
@@ -176,11 +152,12 @@ export default function EarningsScreen() {
               </Pressable>
             </View>
 
-            <View style={[styles.emptyState, { backgroundColor: theme.surfaceSecondary, borderColor: theme.border }]}>
-              <ThemedText style={[styles.emptyStateText, { color: theme.textSecondary }]}>
-                No past payouts are available for the selected date range
-              </ThemedText>
-            </View>
+            <EmptyState
+              icon={CurrencyCircleDollar}
+              title="No Payouts Yet"
+              description="Earnings from this period have not been processed. They will appear here once finalized."
+              style={{ marginTop: 24 }}
+            />
           </>
         ) : (
           <>

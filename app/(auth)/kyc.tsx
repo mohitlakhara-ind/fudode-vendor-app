@@ -2,12 +2,12 @@ import { OnboardingStep2 } from '@/api/types';
 import { JourneyProgress } from '@/components/ui/JourneyProgress';
 import { MeshGradient } from '@/components/ui/MeshGradient';
 import { PremiumInput } from '@/components/ui/PremiumInput';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { PremiumButton } from '@/components/ui/PremiumButton';
 import { Colors, Typography } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { getRestaurantStatus, submitStep2 } from '@/store/slices/restaurantSlice';
-import { BlurView } from 'expo-blur';
+import { getRestaurantStatus, submitStep2, updateStep2 } from '@/store/slices/restaurantSlice';
+import { updateRestaurantToken } from '@/store/slices/authSlice';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ArrowLeft,
@@ -22,7 +22,7 @@ import {
   IdentificationCard,
   User,
 } from 'phosphor-react-native';
-import { useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   Alert,
   Dimensions,
@@ -50,8 +50,9 @@ export default function KycScreen() {
   const theme = Colors[colorScheme];
   const isDark = colorScheme === 'dark';
 
-  const { loading, error: apiError } = useAppSelector((state) => state.restaurant);
+  const { status, loading, error: apiError } = useAppSelector((state) => state.restaurant);
   const [currentPhase, setCurrentPhase] = useState(1);
+  const [hasGstin, setHasGstin] = useState(true);
 
   // Form State aligned with OnboardingStep2
   const [form, setForm] = useState<OnboardingStep2>({
@@ -66,6 +67,49 @@ export default function KycScreen() {
     ifscCode: '',
     upiId: '',
   });
+
+  const hasPrefilled = useRef(false);
+
+  // 1. Fetch current status on mount
+  useEffect(() => {
+    console.log('🔄 [KYC] Screen mounted. Dispatching status fetch...');
+    dispatch(getRestaurantStatus());
+  }, []);
+
+  // 2. Prefill effect with "Breakpoint" logging
+  useEffect(() => {
+    if (status && !hasPrefilled.current) {
+      console.log('🚨 [KYC Breakpoint] Pre-fill Candidate Found:', {
+        legalName: status.legalName,
+        paymentMethod: status.paymentMethod,
+        hasStatus: !!status
+      });
+
+      if (status.legalName || status.paymentMethod) {
+        console.log('✅ [KYC Breakpoint] Population START');
+        setForm(prev => ({
+          ...prev,
+          legalName: status.legalName || prev.legalName,
+          fssai: status.fssai || prev.fssai,
+          PanNo: status.PanNo || prev.PanNo,
+          Gstin: status.Gstin || prev.Gstin,
+          paymentMethod: (status.paymentMethod as any) || prev.paymentMethod,
+          holderName: status.holderName || prev.holderName,
+          bankName: status.bankName || prev.bankName,
+          accountNo: status.accountNo || prev.accountNo,
+          ifscCode: status.ifscCode || prev.ifscCode,
+          upiId: status.upiId || prev.upiId,
+        }));
+        if (status.Gstin) {
+          setHasGstin(true);
+        } else if (status.Gstin === '') {
+          setHasGstin(false);
+        }
+        hasPrefilled.current = true;
+        console.log('✅ [KYC Breakpoint] Population COMPLETE');
+      }
+    }
+  }, [status]);
 
   const updateForm = (key: keyof OnboardingStep2, value: string) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -88,12 +132,18 @@ export default function KycScreen() {
       if (!validateRegex(form.fssai, /^[0-9]{14}$/, '14-digit FSSAI Number')) return;
       setCurrentPhase(2);
     } else if (currentPhase === 2) {
-      if (!form.PanNo || !form.Gstin) {
-        Alert.alert('Required', 'Please enter both PAN and GSTIN numbers.');
+      if (!form.PanNo) {
+        Alert.alert('Required', 'Please enter your PAN number.');
         return;
       }
       if (!validateRegex(form.PanNo, /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'PAN Number (ABCDE1234F)')) return;
-      if (!validateRegex(form.Gstin, /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/, 'GSTIN (e.g. 29ABCDE1234F1Z5)')) return;
+      
+      if (hasGstin && form.Gstin) {
+        if (!validateRegex(form.Gstin, /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/, 'GSTIN (e.g. 29ABCDE1234F1Z5)')) return;
+      } else if (hasGstin && !form.Gstin) {
+        Alert.alert('Required', 'Please enter GSTIN or toggle it off if not applicable.');
+        return;
+      }
       setCurrentPhase(3);
     } else {
       // Final Submit for Step 2
@@ -110,10 +160,46 @@ export default function KycScreen() {
         }
       }
 
-      const resultAction = await dispatch(submitStep2(form));
-      if (submitStep2.fulfilled.match(resultAction)) {
+      // CLEAN PAYLOAD: Only send valid onboarding fields
+      const finalPayload: any = {
+        legalName: form.legalName,
+        fssai: form.fssai,
+        PanNo: form.PanNo,
+        paymentMethod: form.paymentMethod,
+      };
+      
+      if (form.paymentMethod === 'BANK_TRANSFER') {
+        finalPayload.holderName = form.holderName;
+        finalPayload.bankName = form.bankName;
+        finalPayload.accountNo = form.accountNo;
+        finalPayload.ifscCode = form.ifscCode;
+      } else {
+        finalPayload.upiId = form.upiId;
+      }
+
+      if (hasGstin && form.Gstin) {
+        finalPayload.Gstin = form.Gstin;
+      }
+
+      console.log(`🚀 [Onboarding Step 2] ${status?.onboardingStep && status.onboardingStep >= 2 ? 'Updating' : 'Submitting'} Payload:`, JSON.stringify(finalPayload, null, 2));
+
+      let resultAction: any;
+      // Decide between POST (submit) or PUT (update)
+      // If we already have KYC data (legalName or paymentMethod), use Update (PUT)
+      if (status?.id && (status?.legalName || status?.paymentMethod)) {
+        console.log('🔄 [KYC] Existing record found. Calling Update (PUT)...');
+        resultAction = await dispatch(updateStep2(finalPayload));
+      } else {
+        console.log('🚀 [KYC] No existing record. Calling Submit (POST)...');
+        resultAction = await dispatch(submitStep2(finalPayload));
+      }
+
+      if (submitStep2.fulfilled.match(resultAction) || updateStep2.fulfilled.match(resultAction)) {
+        if (status?.id) {
+          console.log(`🚀 [Handshake] Step 2 success. Updating token for Restaurant: ${status.id}`);
+          await dispatch(updateRestaurantToken({ restaurantId: status.id }));
+        }
         await dispatch(getRestaurantStatus());
-        router.replace('/(auth)/onboarding');
       }
     }
   };
@@ -175,14 +261,32 @@ export default function KycScreen() {
           icon={FileText}
           autoCapitalize="characters"
         />
-        <PremiumInput
-          label="GSTIN Number"
-          placeholder="29ABCDE1234F1Z5"
-          value={form.Gstin}
-          onChangeText={(v) => updateForm('Gstin', v.toUpperCase())}
-          icon={FileText}
-          autoCapitalize="characters"
-        />
+
+        <View style={styles.toggleContainer}>
+          <TouchableOpacity 
+            onPress={() => {
+              setHasGstin(!hasGstin);
+              if (hasGstin) updateForm('Gstin', '');
+            }} 
+            style={styles.toggleRow}
+          >
+            <View style={[styles.checkbox, { borderColor: theme.border, backgroundColor: hasGstin ? theme.primary : 'transparent' }]}>
+              {hasGstin && <CheckCircle size={14} color="#FFF" weight="bold" />}
+            </View>
+            <Text style={[styles.toggleLabel, { color: theme.text }]}>I have a GSTIN for this business</Text>
+          </TouchableOpacity>
+        </View>
+
+        {hasGstin && (
+          <PremiumInput
+            label="GSTIN Number"
+            placeholder="29ABCDE1234F1Z5"
+            value={form.Gstin}
+            onChangeText={(v) => updateForm('Gstin', v.toUpperCase())}
+            icon={Fingerprint}
+            autoCapitalize="characters"
+          />
+        )}
         <View style={[styles.infoBox, { backgroundColor: theme.surfaceSecondary }]}>
           <Text style={[styles.infoText, { color: theme.icon }]}>
             Ensure the PAN name matches your legal entity name.
@@ -204,14 +308,14 @@ export default function KycScreen() {
 
       <View style={styles.formGroup}>
         <View style={styles.row}>
-          <PrimaryButton
-            title="Bank Transfer"
+          <PremiumButton
+            label="Bank Transfer"
             onPress={() => updateForm('paymentMethod', 'BANK_TRANSFER')}
             variant={form.paymentMethod === 'BANK_TRANSFER' ? 'primary' : 'outline'}
             style={styles.halfBtn}
           />
-          <PrimaryButton
-            title="UPI ID"
+          <PremiumButton
+            label="UPI ID"
             onPress={() => updateForm('paymentMethod', 'UPI')}
             variant={form.paymentMethod === 'UPI' ? 'primary' : 'outline'}
             style={styles.halfBtn}
@@ -293,21 +397,22 @@ export default function KycScreen() {
           )}
         </ScrollView>
 
-        <BlurView intensity={isDark ? 30 : 60} style={styles.footer}>
+        <View style={[styles.footer, { backgroundColor: theme.background, borderTopColor: theme.border }]}>
           <View style={styles.footerContent}>
             <View style={styles.stepIndicator}>
               <Text style={[styles.stepText, { color: theme.icon }]}>Phase</Text>
               <Text style={[styles.stepValue, { color: theme.text }]}>0{currentPhase} <Text style={{ color: theme.icon, fontSize: 14 }}>/ 03</Text></Text>
             </View>
-            <PrimaryButton
-              title={currentPhase === 3 ? "Submit KYC" : "Continue"}
+            <PremiumButton
+              label={currentPhase === 3 ? "Submit KYC" : "Continue"}
               onPress={handleNext}
-              loading={loading}
+              isLoading={loading}
               style={styles.nextBtn}
-              trailingIcon={currentPhase < 3 ? <ArrowRight size={20} color={theme.background} weight="bold" /> : undefined}
+              variant="primary"
+              rightIcon={currentPhase < 3 ? <ArrowRight size={20} color={theme.background} weight="bold" /> : undefined}
             />
           </View>
-        </BlurView>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -337,5 +442,9 @@ const styles = StyleSheet.create({
   infoBox: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16, borderRadius: 16, marginTop: 10 },
   infoText: { fontSize: 13, fontWeight: '500', flex: 1 },
   errorText: { textAlign: 'center', fontWeight: '600' },
+  toggleContainer: { marginTop: 8, marginBottom: 8 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  toggleLabel: { fontSize: 15, fontWeight: '600' },
 });
 

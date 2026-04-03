@@ -8,6 +8,8 @@ import { Colors, Typography, Fonts } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { RootState } from '@/store/store';
 import { useRouter } from 'expo-router';
+import { logout } from '@/store/slices/authSlice';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   Monitor,
   Moon,
@@ -17,8 +19,7 @@ import {
   SignOut
 } from 'phosphor-react-native';
 import React, { useState } from 'react';
-import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
-import { RestaurantSwitcher } from '@/components/orders/RestaurantSwitcher';
+import { GlobalRestaurantHeader } from '@/components/common/GlobalRestaurantHeader';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
@@ -28,7 +29,9 @@ export default function MoreScreen() {
   const { colorScheme, themeMode, setThemeMode } = useAppTheme();
   const theme = Colors[colorScheme];
   const insets = useSafeAreaInsets();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user } = useAppSelector((state: RootState) => state.auth);
+  const { status: restaurantStatus } = useAppSelector((state: RootState) => state.restaurant);
+  const dispatch = useAppDispatch();
   const router = useRouter();
 
   const [profileVisible, setProfileVisible] = useState(false);
@@ -37,23 +40,15 @@ export default function MoreScreen() {
   const [logoutVisible, setLogoutVisible] = useState(false);
   const [languageVisible, setLanguageVisible] = useState(false);
   const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const { queue } = useAppSelector((state: RootState) => state.order);
 
-  const OWNED_RESTAURANTS = [
-    { id: '1', name: 'Muggs Cafe', locality: 'Balotra Locality' },
-    { id: '2', name: 'Pizza Palace', locality: 'HSR Layout, Bangalore' },
-  ];
-
-  const [isOnline, setIsOnline] = useState(true);
-  const [currentRestaurant, setCurrentRestaurant] = useState(OWNED_RESTAURANTS[0]);
-  const [isSwitcherVisible, setIsSwitcherVisible] = useState(false);
-  const { queue } = useSelector((state: RootState) => state.order);
-
-  const mockUserData = {
-    name: 'Sunil Lalwani',
-    phone: '9376273686',
-    email: 'lsunil96@gmail.com',
+  const userData = {
+    name: restaurantStatus?.profileData?.name || 'Partner Name',
+    phone: restaurantStatus?.phone || 'Loading...',
+    email: restaurantStatus?.profileData?.email || 'email@example.com',
     role: 'OWNER',
-    avatar: null,
+    avatar: restaurantStatus?.profileData?.avatarUrl || null,
+    verificationStatus: restaurantStatus?.profileData?.verificationStatus || 'PENDING'
   };
 
   const handleItemPress = (action?: string) => {
@@ -121,25 +116,8 @@ export default function MoreScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+      <GlobalRestaurantHeader />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: queue.length > 0 ? 240 : 120 }]}>
-        <RestaurantHeader
-          restaurantName={currentRestaurant.name}
-          locality={currentRestaurant.locality}
-          isOnline={isOnline}
-          onToggleStatus={() => setIsOnline(!isOnline)}
-          onPressInfo={() => setIsSwitcherVisible(true)}
-        />
-
-        <RestaurantSwitcher
-          visible={isSwitcherVisible}
-          onClose={() => setIsSwitcherVisible(false)}
-          restaurants={OWNED_RESTAURANTS}
-          selectedId={currentRestaurant.id}
-          onSelect={(res) => {
-            setCurrentRestaurant(res);
-            setIsSwitcherVisible(false);
-          }}
-        />
 
         {/* Profile Card Header */}
         <View style={styles.header}>
@@ -155,15 +133,15 @@ export default function MoreScreen() {
                 style={[styles.profileCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
             >
                 <Image
-                    source={require('@/assets/images/icon.png')}
+                    source={userData.avatar ? { uri: userData.avatar } : require('@/assets/images/icon.png')}
                     style={[styles.profilePic, { borderColor: theme.primary + '20' }]}
                 />
                 <View style={styles.profileInfo}>
-                    <Text style={[styles.userName, { color: theme.text }]}>{mockUserData.name}</Text>
+                    <Text style={[styles.userName, { color: theme.text }]}>{userData.name}</Text>
                     <View style={styles.roleBadge}>
-                        <Text style={[styles.roleText, { color: theme.primary }]}>{mockUserData.role}</Text>
+                        <Text style={[styles.roleText, { color: theme.primary }]}>{userData.role}</Text>
                         <View style={[styles.dot, { backgroundColor: theme.primary }]} />
-                        <Text style={[styles.userId, { color: theme.textSecondary }]}>ID: 88291</Text>
+                        <Text style={[styles.userId, { color: theme.textSecondary }]}>{userData.verificationStatus}</Text>
                     </View>
                 </View>
                 <CaretRight size={18} color={theme.textSecondary} weight="bold" />
@@ -191,7 +169,7 @@ export default function MoreScreen() {
             leftIcon={<SignOut size={20} color={theme.error} weight="bold" />}
             style={styles.logoutBtn}
           />
-          <Text style={[styles.footerText, { color: theme.textSecondary }]}>Logged in as {mockUserData.email}</Text>
+          <Text style={[styles.footerText, { color: theme.textSecondary }]}>Logged in as {userData.email}</Text>
         </View>
 
         <View style={{ height: 120 }} />
@@ -200,7 +178,7 @@ export default function MoreScreen() {
       <ProfileModal
         visible={profileVisible}
         onClose={() => setProfileVisible(false)}
-        userData={mockUserData}
+        userData={userData}
       />
 
       <TimeOffReasonModal
@@ -227,7 +205,8 @@ export default function MoreScreen() {
         onConfirm={() => {
           console.log('Logging out...');
           setLogoutVisible(false);
-          // router.replace('/login');
+          dispatch(logout());
+          router.replace('/(auth)/login');
         }}
       />
 

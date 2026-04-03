@@ -3,8 +3,7 @@ import { NewOrderSheet } from '@/components/orders/NewOrderSheet';
 import { OrderCard } from '@/components/orders/OrderCard';
 import { OrderConfirmationSheet } from '@/components/orders/OrderConfirmationSheet';
 import { OrderStackOverlay } from '@/components/orders/OrderStackOverlay';
-import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
-import { RestaurantSwitcher } from '@/components/orders/RestaurantSwitcher';
+import { GlobalRestaurantHeader } from '@/components/common/GlobalRestaurantHeader';
 import { SearchBar } from '@/components/orders/SearchBar';
 import { FilterSheet } from '@/components/common/FilterSheet';
 import { Colors, StatusColors, Typography } from '@/constants/theme';
@@ -12,15 +11,19 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { IncomingOrder } from '@/hooks/useOrderQueue';
 import { RootState } from '@/store/store';
 import { addOrder, removeOrder } from '@/store/slices/orderSlice';
+import { fetchMyRestaurants, setRestaurantOnline } from '@/store/slices/restaurantSlice';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  CheckCircle,
-  ClockAfternoon,
   CookingPot,
   SealCheck,
   Sparkle,
-  XCircle
+  XCircle,
+  Ranking,
+  HandWaving,
+  ClockAfternoon,
+  CheckCircle as CheckCircleIcon
 } from 'phosphor-react-native';
+import { EmptyState } from '@/components/ui/EmptyState';
 import React, { useEffect, useRef, useState } from 'react';
 import { Dimensions, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,18 +35,14 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const FILTERS = [
   { label: 'Preparing', icon: CookingPot, color: StatusColors.Preparing },
-  { label: 'Ready', icon: CheckCircle, color: StatusColors.Ready },
+  { label: 'Ready', icon: CheckCircleIcon, color: StatusColors.Ready },
   { label: 'Late', icon: ClockAfternoon, color: StatusColors.Late },
   { label: 'Completed', icon: SealCheck, color: StatusColors.Completed },
   { label: 'Cancelled', icon: XCircle, color: StatusColors.Cancelled },
   { label: 'All', icon: Sparkle, color: StatusColors.All },
 ];
 
-const OWNED_RESTAURANTS = [
-  { id: '1', name: 'The Gourmet Kitchen', locality: 'Indiranagar, Bangalore' },
-  { id: '2', name: 'Pizza Palace', locality: 'HSR Layout, Bangalore' },
-  { id: '3', name: 'Sushi Zen', locality: 'Koramangala, Bangalore' },
-];
+// Mock data is now replaced by Redux state
 
 const MOCK_ORDERS = [
   {
@@ -238,11 +237,16 @@ export default function LiveOrdersScreen() {
   const dispatch = useDispatch();
   const params = useLocalSearchParams();
   const { queue } = useSelector((state: RootState) => state.order);
+  const { status: restaurantStatus, myRestaurants, loading: restaurantLoading } = useSelector((state: RootState) => state.restaurant);
+
+  useEffect(() => {
+    // Fetch real restaurants on mount
+    dispatch(fetchMyRestaurants() as any);
+  }, [dispatch]);
 
   const [activeFilter, setActiveFilter] = useState('Preparing');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isOnline, setIsOnline] = useState(true);
-  const [currentRestaurant, setCurrentRestaurant] = useState(OWNED_RESTAURANTS[0]);
+
   const [isSwitcherVisible, setIsSwitcherVisible] = useState(false);
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [showBatteryDebug, setShowBatteryDebug] = useState(false);
@@ -324,12 +328,7 @@ export default function LiveOrdersScreen() {
       <View style={[styles.bgCircle, { backgroundColor: theme.primary, opacity: isDark ? 0.05 : 0.03, left: -100, top: -100 }]} />
       <View style={[styles.bgCircle, { backgroundColor: theme.secondary, opacity: isDark ? 0.05 : 0.03, right: -150, top: 200 }]} />
 
-      <RestaurantHeader
-        restaurantName={currentRestaurant.name}
-        locality={currentRestaurant.locality}
-        isOnline={isOnline}
-        onToggleStatus={() => setIsOnline(!isOnline)}
-        onPressInfo={() => setIsSwitcherVisible(true)}
+      <GlobalRestaurantHeader
         onTitlePress={() => setShowBatteryDebug(!showBatteryDebug)}
       />
 
@@ -346,16 +345,7 @@ export default function LiveOrdersScreen() {
         </View>
       )}
 
-      <RestaurantSwitcher
-        visible={isSwitcherVisible}
-        onClose={() => setIsSwitcherVisible(false)}
-        restaurants={OWNED_RESTAURANTS}
-        selectedId={currentRestaurant.id}
-        onSelect={(res) => {
-          setCurrentRestaurant(res);
-          setIsSwitcherVisible(false);
-        }}
-      />
+      {/* GlobalRestaurantHeader handles switching internally */}
 
       <SearchBar
         value={searchQuery}
@@ -438,12 +428,46 @@ export default function LiveOrdersScreen() {
               )}
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <CookingPot size={64} color={theme.icon} weight="thin" />
-                  <Text style={[styles.emptyText, { color: theme.icon }]}>No {filter.label.toLowerCase()} orders found</Text>
-                </View>
-              }
+              ListEmptyComponent={(() => {
+                let emptyProps = {
+                  icon: Sparkle,
+                  title: `No ${filter.label.toLowerCase()} orders`,
+                  description: `You don't have any orders in the ${filter.label.toLowerCase()} stage right now.`
+                };
+
+                if (filter.label === 'Preparing') {
+                  emptyProps = {
+                    icon: CookingPot,
+                    title: "Kitchen's quiet",
+                    description: "No orders are currently being prepared. Ready for the next rush?"
+                  };
+                } else if (filter.label === 'Ready') {
+                  emptyProps = {
+                    icon: CheckCircleIcon,
+                    title: "All clear!",
+                    description: "No orders are currently waiting for pickup or delivery."
+                  };
+                } else if (filter.label === 'New') {
+                  emptyProps = {
+                    icon: HandWaving,
+                    title: "Welcome aboard!",
+                    description: "No new orders yet. We'll alert you with a loud ring as soon as a customer orders!"
+                  };
+                } else if (filter.label === 'Late') {
+                  emptyProps = {
+                    icon: ClockAfternoon,
+                    title: "Phew, no delays!",
+                    description: "All orders are currently tracking on time. Great job!"
+                  };
+                }
+
+                return (
+                  <EmptyState
+                    {...emptyProps}
+                    style={{ paddingTop: 80 }}
+                  />
+                );
+              })()}
               ListFooterComponent={<View style={{ height: queue.length > 0 ? 240 : 120 }} />}
             />
           </View>

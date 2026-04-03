@@ -73,18 +73,33 @@ export const verifyOtp = createAsyncThunk(
 export const updateRestaurantToken = createAsyncThunk(
   'auth/updateRestaurantToken',
   async (
-    payload: { refreshToken: string; deviceId: string; restaurantId: string },
+    payload: { restaurantId: string },
     { rejectWithValue }
   ) => {
     try {
-      const response = await api.post('/auth/update', payload);
-      const { accessToken }: { accessToken: string } = response.data;
-
-      // Update local storage with the new scoped token
-      await storage.setItem(AUTH_KEYS.ACCESS_TOKEN, accessToken);
+      const refreshToken = await storage.getItem(AUTH_KEYS.REFRESH_TOKEN);
+      const deviceId = await getPersistentDeviceId();
       
-      return { accessToken };
+      if (!refreshToken) throw new Error('No refresh token available');
+
+      // Use raw axios to avoid interceptor adding Authorization header for this token exchange
+      const response = await api.post('/auth/update', {
+        refreshToken,
+        deviceId,
+        restaurantId: payload.restaurantId
+      });
+      
+      const { accessToken, refreshToken: newRefreshToken }: AuthResponse = response.data.data !== undefined ? response.data.data : response.data;
+
+      // Update local storage with the new scoped tokens
+      await storage.setItem(AUTH_KEYS.ACCESS_TOKEN, accessToken);
+      if (newRefreshToken) {
+        await storage.setItem(AUTH_KEYS.REFRESH_TOKEN, newRefreshToken);
+      }
+      
+      return { accessToken, refreshToken: newRefreshToken };
     } catch (error: any) {
+      console.error('❌ [Auth Handshake] Error:', error.response?.data || error.message);
       return rejectWithValue(error.response?.data?.error || 'Handshake failed');
     }
   }
@@ -120,19 +135,28 @@ export const logout = createAsyncThunk(
   'auth/logout',
   async (_, { rejectWithValue }) => {
     try {
+      const accessToken = await storage.getItem(AUTH_KEYS.ACCESS_TOKEN);
       const deviceId = await storage.getItem(AUTH_KEYS.DEVICE_ID);
-      if (deviceId) {
+      
+      // If we have a token, notify the server. If not, just clear locally.
+      if (accessToken && deviceId) {
+        try {
           await api.post('/auth/logout', { deviceId });
+        } catch (apiError) {
+          console.warn('[Auth] Server-side logout failed, proceeding with local logout');
+        }
       }
 
       await storage.removeItem(AUTH_KEYS.ACCESS_TOKEN);
       await storage.removeItem(AUTH_KEYS.REFRESH_TOKEN);
       await storage.removeItem(AUTH_KEYS.USER_ID);
-      // We keep the DEVICE_ID for future tracking
       
       return null;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Failed to logout');
+      // Ensure local state is cleared even if unexpected errors occur
+      await storage.removeItem(AUTH_KEYS.ACCESS_TOKEN);
+      await storage.removeItem(AUTH_KEYS.REFRESH_TOKEN);
+      return rejectWithValue(error.message || 'Failed to logout');
     }
   }
 );
@@ -188,8 +212,19 @@ const authSlice = createSlice({
       })
       .addCase(updateRestaurantToken.fulfilled, (state, action) => {
         state.accessToken = action.payload.accessToken;
-        // The token is now restaurant-scoped
-        console.log('🔄 [Auth] Handshake successful. Token updated to restaurant-scoped.');
+        if (action.payload.refreshToken) {
+          state.refreshToken = action.payload.refreshToken;
+        }
+        state.isAuthenticated = true;
+        console.log('🔄 [Auth] Handshake successful. Tokens updated to restaurant-scoped.');
+      })
+      .addCase(updateRestaurantToken.rejected, (state, action) => {
+        // If the handshake fails with a 401 specifically, it might mean the session is totally invalid
+        if ((action.payload as string)?.includes('refresh token')) {
+          state.isAuthenticated = false;
+          state.accessToken = null;
+          state.refreshToken = null;
+        }
       })
       .addCase(initializeAuth.pending, (state) => {
         state.loading = true;
@@ -214,7 +249,20 @@ const authSlice = createSlice({
         state.refreshToken = null;
         state.kycStatus = undefined;
         state.isAuthenticated = false;
-      });
+      })
+      .addMatcher(
+        (action) => action.type.endsWith('/fulfilled'),
+        (state) => {
+          state.loading = false;
+        }
+      )
+      .addMatcher(
+        (action) => action.type.endsWith('/rejected') && action.type.startsWith('auth/'),
+        (state, action: any) => {
+          state.loading = false;
+          state.error = (action.payload as string) || 'An error occurred';
+        }
+      );
   },
 });
 

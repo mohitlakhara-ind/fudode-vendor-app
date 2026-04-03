@@ -28,7 +28,6 @@ export interface AuthResponse {
 export interface OwnerProfileDetails {
   name: string;
   email: string;
-  alternateNo: string;
   aadhaarNo: string;
 }
 
@@ -40,7 +39,7 @@ export interface OnboardingStep1 {
   area: string;
   city: string;
   shopno: string;
-  tower: string; // Mapped to 'floor' in UI
+  floor: string;
   landMark: string;
 }
 
@@ -70,15 +69,24 @@ export enum OnboardingStatus {
   REJECTED = 'REJECTED',
 }
 
-export interface RestaurantStatus {
+export interface RestaurantStatus extends Partial<OnboardingStep1>, Partial<OnboardingStep2> {
   id?: string;
   name?: string;
   address?: string;
+  phone?: string;
   onboardingStep: number;
   onboardingStatus: OnboardingStatus;
-  profileData?: {
-    isOwnerProfileComplete: boolean;
-  };
+    profileData?: {
+      isOwnerProfileComplete: boolean;
+      name?: string;
+      email?: string;
+      avatarUrl?: string;
+      phone?: string;
+      aadhaarNo?: string;
+      aadhaarFrontUrl?: string;
+      aadhaarBackUrl?: string;
+      verificationStatus?: OwnerProfileStatus;
+    };
 }
 
 export interface Restaurant {
@@ -114,14 +122,28 @@ export interface Category {
   items?: MenuItem[];
 }
 
+export interface CategoryCreateRequest {
+  name: string;
+  parentCategoryId?: string;
+}
+
+export interface CategoryUpdateRequest {
+  name?: string;
+  sortOrder?: number;
+}
+
 export interface MenuItem {
   id: string;
   categoryId: string;
   name: string;
   description?: string;
   foodType: 'VEG' | 'NON_VEG' | 'EGG';
+  prepTime?: number;
+  imageUrl?: string;
   variants: MenuVariant[];
-  status: 'AVAILABLE' | 'SOLD_OUT';
+  tags?: string[];
+  addonGroupIds?: string[];
+  status: 'AVAILABLE' | 'SOLD_OUT' | 'HIDDEN';
   order?: number;
 }
 
@@ -129,4 +151,57 @@ export interface MenuVariant {
   name: string;
   price: number;
   isDefault: boolean;
+}
+
+export interface ItemCreateRequest {
+  categoryId: string;
+  name: string;
+  description: string;
+  foodType: 'VEG' | 'NON_VEG' | 'EGG';
+  prepTime: number;
+  imageUrl?: string;
+  variants: MenuVariant[];
+  tags: string[];
+  addonGroupIds: string[];
+}
+
+export interface ItemUpdateRequest extends Partial<Omit<ItemCreateRequest, 'categoryId' | 'name'>> {}
+
+export interface ItemStatusUpdate {
+  id: string;
+  status: 'AVAILABLE' | 'SOLD_OUT' | 'HIDDEN';
+}
+
+export interface AddonGroup {
+  id: string;
+  name: string;
+  minSelect: number;
+  maxSelect: number;
+  isRequired: boolean;
+  addons?: any[]; // Detailed addon info if needed later
+}
+
+export interface AddonGroupCreateRequest {
+  name: string;
+  minSelect: number;
+  maxSelect: number;
+  isRequired: boolean;
+}
+
+export interface KycOverallStatus {
+  status: boolean;
+  message?: string;
+  verificationStatus: string;
+  details?: any;
+}
+
+export interface UserRestaurant {
+  role: string;
+  scopeId: string;
+  status: string;
+  restaurant: {
+    id: string;
+    name: string;
+    address?: string;
+  };
 }

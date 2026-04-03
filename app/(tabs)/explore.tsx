@@ -22,8 +22,7 @@ import { PremiumButton } from '@/components/ui/PremiumButton';
 import { Separator } from '@/components/ui/Separator';
 import { Colors, Typography, Fonts, StatusColors } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { RestaurantHeader } from '@/components/orders/RestaurantHeader';
-import { RestaurantSwitcher } from '@/components/orders/RestaurantSwitcher';
+import { GlobalRestaurantHeader } from '@/components/common/GlobalRestaurantHeader';
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
@@ -54,9 +53,6 @@ export default function ExploreScreen() {
   const theme = Colors[colorScheme];
   const isDark = colorScheme === 'dark';
 
-  const [isOnline, setIsOnline] = useState(true);
-  const [currentRestaurant, setCurrentRestaurant] = useState(OWNED_RESTAURANTS[0]);
-  const [isSwitcherVisible, setIsSwitcherVisible] = useState(false);
   const { queue } = useSelector((state: RootState) => state.order);
 
   return (
@@ -65,28 +61,12 @@ export default function ExploreScreen() {
       <View style={[styles.bgCircle, { backgroundColor: theme.primary, opacity: isDark ? 0.08 : 0.04, left: -50, top: -50 }]} />
       <View style={[styles.bgCircle, { backgroundColor: '#8833FF', opacity: isDark ? 0.06 : 0.03, right: -100, top: 300 }]} />
 
+      <GlobalRestaurantHeader />
+
       <ScrollView 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: queue.length > 0 ? 240 : 120 }]}
       >
-      <RestaurantHeader
-        restaurantName={currentRestaurant.name}
-        locality={currentRestaurant.locality}
-        isOnline={isOnline}
-        onToggleStatus={() => setIsOnline(!isOnline)}
-        onPressInfo={() => setIsSwitcherVisible(true)}
-      />
-
-      <RestaurantSwitcher
-        visible={isSwitcherVisible}
-        onClose={() => setIsSwitcherVisible(false)}
-        restaurants={OWNED_RESTAURANTS}
-        selectedId={currentRestaurant.id}
-        onSelect={(res) => {
-          setCurrentRestaurant(res);
-          setIsSwitcherVisible(false);
-        }}
-      />
 
         {/* STATS GRID */}
         <View style={styles.statsGrid}>
