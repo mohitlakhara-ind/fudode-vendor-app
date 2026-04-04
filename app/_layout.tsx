@@ -15,7 +15,7 @@ import { getRestaurantStatus } from '@/store/slices/restaurantSlice';
 import { getOwnerProfile } from '@/store/slices/profileSlice';
 
 export const unstable_settings = {
-  initialRouteName: '(auth)/login',
+  initialRouteName: '(auth)',
 };
 
 import { 
@@ -42,7 +42,7 @@ import { Loading } from '@/components/ui/Loading';
 function AppNavigator() {
   const dispatch = useDispatch<AppDispatch>();
   const { colorScheme } = useAppTheme();
-  const segments = useSegments();
+  const segments = useSegments() as string[];
   const router = useRouter();
   const { isAuthenticated, loading, kycStatus } = useSelector((state: RootState) => state.auth);
   const [isReady, setIsReady] = useState(false);
@@ -62,7 +62,7 @@ function AppNavigator() {
     Inter_700Bold,
   });
 
-  const { status: restaurantStatus, loading: restaurantLoading } = useSelector((state: RootState) => state.restaurant);
+  const { status: restaurantStatus, loading: restaurantLoading, error: restaurantError } = useSelector((state: RootState) => state.restaurant);
 
   useEffect(() => {
     if (poppinsLoaded && interLoaded) {
@@ -79,31 +79,46 @@ function AppNavigator() {
   }, [isAuthenticated, dispatch]);
 
   useEffect(() => {
-    if (!isReady || loading) return;
+    const isAppInitializing = !isReady || loading || (isAuthenticated && !restaurantStatus && restaurantLoading);
+
+    if (isAppInitializing) {
+      console.log('[AppNavigator] Initializing/Fetching state. Waiting to mount navigator...');
+      return;
+    }
 
     const inAuthGroup = (segments as any).includes('(auth)');
     const currentPath = segments.join('/');
-    console.log('[AppNavigator] State:', { currentPath, segments, isAuthenticated, restaurantStatus: restaurantStatus?.onboardingStatus, loading, isReady });
+    console.log('[AppNavigator] State:', { 
+      currentPath, 
+      segments, 
+      isAuthenticated, 
+      restaurantStatus: restaurantStatus?.onboardingStatus, 
+      restaurantLoading, // Added for better debugging
+      loading, 
+      isReady, 
+      restaurantError 
+    });
 
     if (!isAuthenticated) {
       if (!currentPath.includes('login') && !currentPath.includes('verify')) {
         console.log('[AppNavigator] Redirecting to login');
-        router.replace('/(auth)/login');
+        router.replace('/login');
       }
     } else {
-      // 1. Wait if we're in the middle of fetching the status for the first time
-      if (restaurantLoading && !restaurantStatus) {
-        console.log('[AppNavigator] Initial status fetch in progress...');
-        return;
-      }
-
       // 2. Decide based on status
       if (!restaurantStatus) {
         if (!restaurantLoading) {
-           console.log('[AppNavigator] No restaurant status found, defaulting to owner-profile');
-           if (currentPath !== '(auth)/owner-profile' && !currentPath.includes('verify')) {
-             router.replace('/(auth)/owner-profile');
+           // If we have an error, don't automatically redirect as it might cause a loop if the target screen also fetches
+           if (restaurantError) {
+             console.log('[AppNavigator] Status fetch failed with error:', restaurantError);
+             return;
            }
+
+            console.log('[AppNavigator] No restaurant status found, defaulting to owner-profile');
+            // Simplified check: since we are authenticated, we should arrive at owner-profile if no restaurant exists
+            if (!segments.includes('owner-profile') && !segments.includes('verify')) {
+              router.replace('/owner-profile');
+            }
         }
         return;
       }
@@ -121,31 +136,34 @@ function AppNavigator() {
 
       // PHASE 2 CHECK: Owner Identity
       if (!isOwnerComplete) {
-        if (!currentPath.includes('owner-profile') && !currentPath.includes('verify')) {
+        if (!segments.includes('owner-profile') && !segments.includes('verify')) {
           console.log('[AppNavigator] Owner profile incomplete, forcing Phase 2 Identity Verification');
-          router.replace('/(auth)/owner-profile');
+          router.replace('/owner-profile');
           return;
         }
       } 
       // PHASE 3 CHECK: Restaurant Verification
       else if (!isVerified) {
         // Only redirect to onboarding if we are not already in its sub-screens
-        if (!inOnboardingGroup && !currentPath.includes('onboarding')) {
+        if (!inOnboardingGroup && !segments.includes('onboarding')) {
           console.log('[AppNavigator] Phase 2 complete, transitioning to Phase 3 Onboarding');
-          router.replace('/(auth)/onboarding');
+          router.replace('/onboarding');
           return;
         }
       } 
       // VERIFIED: Move to Tabs
       else if (currentPath === '' || (segments as any).includes('(auth)')) {
         console.log('[AppNavigator] Fully verified, redirecting to dashboard');
+        // Check if we already have a redirect pending to avoid double-replace
         router.replace('/(tabs)');
         return;
       }
     }
     
     // Hide splash screen only when we are sure where the user belongs
-    SplashScreen.hideAsync();
+    if (isReady && !loading && (!isAuthenticated || restaurantStatus || !restaurantLoading)) {
+      SplashScreen.hideAsync();
+    }
   }, [isAuthenticated, restaurantStatus, segments, loading, isReady, router, restaurantLoading]);
 
   const customDarkTheme = {
@@ -176,7 +194,11 @@ function AppNavigator() {
   
   // INITIAL INITIALIZATION ONLY
   // Once the app is ready, we keep the stack mounted to prevent native de-sync errors
-  const isAppInitializing = !isReady || (loading && !inAuthGroup);
+  // We stay in loading state until:
+  // 1. Core JS/Fonts are ready
+  // 2. Auth state is determined
+  // 3. If authenticated, restaurant status is determined
+  const isAppInitializing = !isReady || loading || (isAuthenticated && !restaurantStatus && restaurantLoading);
 
   if (isAppInitializing) {
     return <Loading />;
@@ -185,17 +207,16 @@ function AppNavigator() {
   return (
     <NavigationThemeProvider value={colorScheme === 'dark' ? customDarkTheme : customLightTheme}>
       <Stack screenOptions={{ headerShown: false }}>
+        {/* We use the (auth) group which now contains its own layout stack
+            This improves initialization reliability */}
+        <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+        
+        {/* Main App tabs */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)/login" options={{ headerShown: false, animation: 'fade' }} />
-        <Stack.Screen name="(auth)/verify" options={{ headerShown: false, animation: 'slide_from_right' }} />
-        <Stack.Screen name="(auth)/onboarding" options={{ headerShown: false, animation: 'slide_from_right' }} />
-        <Stack.Screen name="(auth)/owner-profile" options={{ headerShown: false, animation: 'slide_from_right' }} />
-        <Stack.Screen name="(auth)/store-profile" options={{ headerShown: false, animation: 'slide_from_right' }} />
-        <Stack.Screen name="(auth)/kyc" options={{ headerShown: false, animation: 'slide_from_right' }} />
-        <Stack.Screen name="(auth)/contract" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        
+        {/* Helper screens */}
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Settings' }} />
-
-        <Stack.Screen name="restaurant-status" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="restaurant-status" options={{ animation: 'slide_from_right' }} />
       </Stack>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
     </NavigationThemeProvider>

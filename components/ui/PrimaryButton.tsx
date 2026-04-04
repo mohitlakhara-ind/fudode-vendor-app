@@ -98,11 +98,23 @@ export const PrimaryButton = ({
         <ActivityIndicator color={getTextColor()} />
       ) : (
         <View style={styles.content}>
-          {leadingIcon && <View style={styles.leadingIcon}>{leadingIcon}</View>}
+          {leadingIcon && (
+            <View style={styles.leadingIcon}>
+              {React.isValidElement(leadingIcon) 
+                ? React.cloneElement(leadingIcon as React.ReactElement, { color: getTextColor() } as any)
+                : leadingIcon}
+            </View>
+          )}
           <Text style={[styles.text, { color: getTextColor() }, textStyle]}>
             {title}
           </Text>
-          {trailingIcon && <View style={styles.trailingIcon}>{trailingIcon}</View>}
+          {trailingIcon && (
+            <View style={styles.trailingIcon}>
+              {React.isValidElement(trailingIcon) 
+                ? React.cloneElement(trailingIcon as React.ReactElement, { color: getTextColor() } as any)
+                : trailingIcon}
+            </View>
+          )}
         </View>
       )}
     </AnimatedTouchableOpacity>

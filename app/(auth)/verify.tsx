@@ -30,6 +30,7 @@ import Animated, {
 import { MeshGradient } from '@/components/ui/MeshGradient';
 import { GlassView } from '@/components/ui/GlassView';
 import { PremiumButton } from '@/components/ui/PremiumButton';
+import { AnimatedPage } from '@/components/ui/AnimatedPage';
 
 const { width } = Dimensions.get('window');
 
@@ -129,7 +130,7 @@ export default function VerifyScreen() {
   }));
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <AnimatedPage style={[styles.container, { backgroundColor: theme.background }]}>
       <MeshGradient />
 
       <KeyboardAvoidingView
@@ -248,7 +249,7 @@ export default function VerifyScreen() {
           />
         </GlassView>
       </KeyboardAvoidingView>
-    </View>
+    </AnimatedPage>
   );
 }
 

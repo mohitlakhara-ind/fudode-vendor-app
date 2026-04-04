@@ -1,7 +1,7 @@
 import { Colors, Typography } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { RootState } from '@/store/store';
-import { Ionicons } from '@expo/vector-icons'; // Or your preferred icon set
+import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import React from 'react';
 import {
@@ -12,8 +12,18 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
+import Animated, { 
+  useAnimatedStyle, 
+  withSpring, 
+  FadeInDown, 
+  FadeOutUp,
+  LinearTransition,
+  ZoomIn
+} from 'react-native-reanimated';
 
 import { GlassView } from './ui/GlassView';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
@@ -22,8 +32,6 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
   const isDark = colorScheme === 'dark';
 
   const { isModalOpen } = useSelector((state: RootState) => state.ui);
-
-  if (isModalOpen) return null;
 
   // Glassy background color (more transparent to show blur)
   const glassyBg = theme.surface + (isDark ? '66' : '99');
@@ -41,33 +49,48 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
     }
   };
 
-  const renderTab = (routeName: string) => {
+  const animatedModeCircleStyle = useAnimatedStyle(() => {
+    return {
+      backgroundColor: withSpring(isManageMode ? theme.primary : theme.secondary),
+      transform: [{ scale: withSpring(1) }],
+    };
+  });
+
+  if (isModalOpen) return null;
+
+  const renderTab = (routeName: string, index: number) => {
     const route = state.routes.find((r) => r.name === routeName);
     if (!route) return null;
     const { options } = descriptors[route.key];
     const isFocused = currentRouteName === routeName;
 
     return (
-      <Pressable
-        key={route.key}
-        onPress={() => handleNavigate(route.name)}
+      <Animated.View
+        key={`${routeName}-${isManageMode}`}
+        entering={FadeInDown.delay(index * 50).duration(400).springify()}
+        exiting={FadeOutUp.duration(200)}
         style={styles.tab}
       >
-        {options.tabBarIcon?.({
-          focused: isFocused,
-          color: isFocused ? theme.primary : theme.icon,
-          size: 22,
-        })}
-        <Text
-          style={[
-            styles.labelText,
-            { color: isFocused ? theme.primary : theme.icon, fontWeight: isFocused ? '700' : '500' }
-          ]}
-          numberOfLines={1}
+        <Pressable
+          onPress={() => handleNavigate(route.name)}
+          style={styles.tabPressable}
         >
-          {options.title || route.name}
-        </Text>
-      </Pressable>
+          {options.tabBarIcon?.({
+            focused: isFocused,
+            color: isFocused ? theme.primary : theme.icon,
+            size: 22,
+          })}
+          <Text
+            style={[
+              styles.labelText,
+              { color: isFocused ? theme.primary : theme.icon, fontWeight: isFocused ? '700' : '500' }
+            ]}
+            numberOfLines={1}
+          >
+            {options.title || route.name}
+          </Text>
+        </Pressable>
+      </Animated.View>
     );
   };
 
@@ -81,34 +104,40 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
       <View style={[styles.container, { paddingBottom: insets.bottom || 10 }]}>
 
         {/* LEFT SECTION */}
-        <View style={styles.section}>
-          {activeGroup.slice(0, 2).map(renderTab)}
-        </View>
+        <Animated.View layout={LinearTransition.springify()} style={styles.section}>
+          {activeGroup.slice(0, 2).map((route, idx) => renderTab(route, idx))}
+        </Animated.View>
 
         {/* OVERSIZED CIRCULAR CENTER TOGGLE */}
         <View style={styles.centerAnchor}>
-          <Pressable
+          <AnimatedPressable
             onPress={() => handleNavigate(isManageMode ? 'index' : 'dashboard')}
             style={[
               styles.modeCircle,
-              { backgroundColor: isManageMode ? theme.primary : theme.secondary } // TODO: change this color
+              animatedModeCircleStyle
             ]}
           >
-            <Ionicons
-              name={isManageMode ? "flash-outline" : "grid-outline"}
-              size={24}
-              color={theme.background} // Dynamic color for icon
-            />
-            <Text style={[styles.modeText, { color: theme.background }]}>
-              {isManageMode ? 'TO LIVE' : 'TO HUB'}
-            </Text>
-          </Pressable>
+            <Animated.View 
+              key={isManageMode ? 'manage' : 'live'}
+              entering={ZoomIn.duration(400)}
+              style={styles.iconContainer}
+            >
+              <Ionicons
+                name={isManageMode ? "flash-outline" : "grid-outline"}
+                size={24}
+                color={theme.background}
+              />
+              <Text style={[styles.modeText, { color: theme.background }]}>
+                {isManageMode ? 'TO LIVE' : 'TO HUB'}
+              </Text>
+            </Animated.View>
+          </AnimatedPressable>
         </View>
 
         {/* RIGHT SECTION */}
-        <View style={styles.section}>
-          {activeGroup.slice(2, 4).map(renderTab)}
-        </View>
+        <Animated.View layout={LinearTransition.springify()} style={styles.section}>
+          {activeGroup.slice(2, 4).map((route, idx) => renderTab(route, idx + 2))}
+        </Animated.View>
 
       </View>
     </View>
@@ -124,7 +153,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     borderTopWidth: 1,
-    // Standard shadow
     elevation: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -8 },
@@ -149,9 +177,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flex: 1,
   },
+  tabPressable: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
   labelText: {
     ...Typography.Caption,
-    fontSize: 10, // Overriding for ultra-compact tab bar
+    fontSize: 10,
     marginTop: 4,
     textTransform: 'capitalize',
   },
@@ -168,9 +201,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'absolute',
-    top: -55, // High overlap
+    top: -55,
     borderWidth: 6,
     borderColor: 'transparent',
+  },
+  iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modeText: {
     ...Typography.Caption,

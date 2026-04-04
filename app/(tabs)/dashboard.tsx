@@ -32,6 +32,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
 import { useRouter } from 'expo-router';
+import { AnimatedPage } from '@/components/ui/AnimatedPage';
 
 const HUB_TABS = ['My Feed', 'Sales', 'Funnel', 'Customers', 'Offers', 'Ads', 'Service quality', 'Kitchen efficiency'];
 
@@ -85,7 +86,7 @@ export default function DashboardScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+    <AnimatedPage style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <GlobalRestaurantHeader />
@@ -233,7 +234,7 @@ export default function DashboardScreen() {
           <View style={[styles.footerLine, { backgroundColor: theme.border }]} />
         </View>
       </ScrollView>
-    </View>
+    </AnimatedPage>
   );
 }
 

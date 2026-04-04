@@ -4,7 +4,7 @@ const { getDefaultConfig } = require('expo/metro-config');
 const config = getDefaultConfig(__dirname);
 
 // Define the regular expression to match files starting with `._`
-const appleDoublePrefix = /^\._.*/;
+const appleDoublePrefix = /.*\/\._.*/;
 
 config.resolver.blockList = [
   ...(config.resolver.blockList || []),

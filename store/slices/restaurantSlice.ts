@@ -214,7 +214,11 @@ export const submitStep1 = createAsyncThunk(
       const response = await api.post('/onboard/step-1', details);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Failed to submit Step 1');
+      return rejectWithValue(
+        error.response?.data?.message || 
+        error.response?.data?.error || 
+        'Failed to submit Step 1'
+      );
     }
   }
 );
@@ -223,7 +227,7 @@ export const updateStep1 = createAsyncThunk(
   'restaurant/updateStep1',
   async (details: OnboardingStep1, { rejectWithValue }) => {
     try {
-      const response = await api.put('/onboard/step-1', details);
+      const response = await api.put('/restaurant/onboard/update-step-1', details);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.error || 'Failed to update Step 1');
@@ -239,22 +243,15 @@ export const submitStep2 = createAsyncThunk(
       const response = await api.post('/onboard/step-2', details);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Failed to submit Step 2');
+      return rejectWithValue(
+        error.response?.data?.message || 
+        error.response?.data?.error || 
+        'Failed to submit Step 2'
+      );
     }
   }
 );
 
-export const updateStep2 = createAsyncThunk(
-  'restaurant/updateStep2',
-  async (details: OnboardingStep2, { rejectWithValue }) => {
-    try {
-      const response = await api.put('/onboard/step-2', details);
-      return response.data;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Failed to update Step 2');
-    }
-  }
-);
 
 export const submitStep3 = createAsyncThunk(
   'restaurant/submitStep3',
@@ -347,10 +344,16 @@ const restaurantSlice = createSlice({
               isOwnerProfileComplete: true
             },
             onboardingStatus: incomingData.onboardingStatus || currentOnboardingStatus,
-            onboardingStep: incomingData.onboardingStep || state.status?.onboardingStep || 0
+            onboardingStep: Math.max(incomingData.onboardingStep || 0, state.status?.onboardingStep || 0)
           };
         } else {
-          state.status = incomingData;
+          state.status = {
+            ...incomingData,
+            // If incoming data is 0 but we have a restaurant name or other info, trust the local step if higher
+            onboardingStep: (incomingData.onboardingStep === 0 && state.status?.onboardingStep && state.status?.onboardingStep > 0) 
+              ? state.status.onboardingStep 
+              : (incomingData.onboardingStep || 0)
+          };
         }
       })
       .addCase(fetchMyRestaurants.fulfilled, (state, action) => {
@@ -365,6 +368,27 @@ const restaurantSlice = createSlice({
       .addCase(fetchKycOverallStatus.fulfilled, (state, action) => {
         state.kycStatus = action.payload;
         state.loading = false;
+      })
+      // Optimistic update for Step 1 (Store Profile)
+      .addCase(submitStep1.fulfilled, (state, action) => {
+        state.loading = false;
+        if (state.status) {
+          state.status = {
+            ...state.status,
+            onboardingStep: Math.max(state.status.onboardingStep || 0, 1),
+            id: action.payload.data?.restaurantId || state.status.id
+          };
+        }
+      })
+      // Optimistic update for Step 2 (KYC)
+      .addCase(submitStep2.fulfilled, (state) => {
+        state.loading = false;
+        if (state.status) {
+          state.status = {
+            ...state.status,
+            onboardingStep: Math.max(state.status.onboardingStep || 0, 2)
+          };
+        }
       })
       // Optimistic update for Owner Profile
       .addCase(submitOwnerProfile.fulfilled, (state) => {

@@ -29,6 +29,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AnimatedPage } from '@/components/ui/AnimatedPage';
 
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 
@@ -63,7 +64,7 @@ export default function OnboardingScreen() {
         icon: Files,
         route: '/(auth)/kyc',
         isCompleted: currentOnboardingStep >= 2,
-        isClickable: currentOnboardingStep >= 1,
+        isClickable: currentOnboardingStep >= 1 && currentOnboardingStep < 2,
       },
       {
         id: 'step3',
@@ -72,7 +73,7 @@ export default function OnboardingScreen() {
         icon: ShieldCheck,
         route: '/(auth)/contract',
         isCompleted: currentOnboardingStep >= 3 || status?.onboardingStatus === 'COMPLETED' || status?.onboardingStatus === 'VERIFIED',
-        isClickable: currentOnboardingStep >= 2,
+        isClickable: currentOnboardingStep >= 2 && currentOnboardingStep < 3,
       },
     ];
   }, [status]);
@@ -80,12 +81,16 @@ export default function OnboardingScreen() {
   const currentStep = status?.onboardingStep ?? 0;
   const progressPercent = Math.min((currentStep) / 3, 1);
 
-  const handleStepPress = (route: string, isClickable: boolean) => {
-    if (!isClickable) {
+  const handleStepPress = (step: any) => {
+    if (step.isCompleted && step.id !== 'step1') {
+      Alert.alert('Step Completed', 'This phase has already been submitted and cannot be updated.');
+      return;
+    }
+    if (!step.isClickable) {
       Alert.alert('Locked', 'Please complete the previous steps first.');
       return;
     }
-    router.push(route as any);
+    router.push(step.route as any);
   };
 
   const handleLogout = () => {
@@ -103,7 +108,7 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <AnimatedPage style={[styles.container, { backgroundColor: theme.background }]}>
       <MeshGradient />
 
       <ScrollView
@@ -150,8 +155,9 @@ export default function OnboardingScreen() {
               entering={FadeInDown.delay(600 + index * 100).duration(600)}
             >
               <TouchableOpacity
-                onPress={() => handleStepPress(step.route, step.isClickable)}
+                onPress={() => handleStepPress(step)}
                 activeOpacity={0.7}
+                disabled={!step.isClickable && !step.isCompleted}
                 style={styles.stepCardWrapper}
               >
                 <GlassView
@@ -163,7 +169,7 @@ export default function OnboardingScreen() {
                       borderColor: theme.success + '60',
                       backgroundColor: theme.success + '08' 
                     },
-                    !step.isClickable && { opacity: 0.5 }
+                    !step.isClickable && !step.isCompleted && { opacity: 0.5 }
                   ]}
                 >
                   <View style={[
@@ -191,7 +197,9 @@ export default function OnboardingScreen() {
                     <View style={styles.checkWrapper}>
                       <View style={{ alignItems: 'center', gap: 4 }}>
                         <CheckCircle size={24} color={theme.success} weight="fill" />
-                        <Text style={{ fontSize: 10, color: theme.primary, fontWeight: 'bold' }}>EDIT</Text>
+                        {step.id === 'step1' && (
+                          <Text style={{ fontSize: 10, color: theme.primary, fontWeight: 'bold' }}>EDIT</Text>
+                        )}
                       </View>
                     </View>
                   ) : (
@@ -220,7 +228,7 @@ export default function OnboardingScreen() {
           </TouchableOpacity>
         )}
       </GlassView>
-    </View>
+    </AnimatedPage>
   );
 }
 
@@ -325,13 +333,16 @@ const styles = StyleSheet.create({
   stepCardWrapper: {
     borderRadius: 24,
     overflow: 'hidden',
+    marginBottom: 8,
   },
   stepCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
   },
   iconBox: {
     width: 52,

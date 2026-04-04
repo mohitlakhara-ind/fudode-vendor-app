@@ -17,7 +17,11 @@ export const MeshGradient = () => {
   
   if (isDark) {
     return (
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: '#131313' }]}>
+      <View 
+        style={[StyleSheet.absoluteFill, { backgroundColor: '#131313' }]}
+        renderToHardwareTextureAndroid={true}
+        collapsable={false}
+      >
         {/* Top Right Glow */}
         <LinearGradient
           colors={['rgba(250, 203, 4, 0.12)', 'transparent']}
@@ -40,7 +44,11 @@ export const MeshGradient = () => {
   }
 
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#F8F9FA' }]}>
+    <View 
+      style={[StyleSheet.absoluteFill, { backgroundColor: '#F8F9FA' }]}
+      renderToHardwareTextureAndroid={true}
+      collapsable={false}
+    >
       {/* Soft Top Gradient */}
       <LinearGradient
         colors={['rgba(250, 203, 4, 0.08)', 'transparent']}

@@ -30,6 +30,7 @@ import {
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import Animated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated';
+import { AnimatedPage } from '@/components/ui/AnimatedPage';
 
 const { width } = Dimensions.get('window');
 
@@ -118,17 +119,17 @@ export default function ContractScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center' }]}>
+      <AnimatedPage style={[styles.container, { backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center' }]}>
         <MeshGradient />
         <ActivityIndicator size="large" color={theme.primary} />
         <Text style={[styles.loadingText, { color: theme.icon, marginTop: 16 }]}>Loading legal agreement...</Text>
-      </View>
+      </AnimatedPage>
     );
   }
 
   if (isPending) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <AnimatedPage style={[styles.container, { backgroundColor: theme.background }]}>
         <MeshGradient />
         <View style={styles.overlay}>
           <View style={styles.topBar}>
@@ -179,12 +180,12 @@ export default function ContractScreen() {
             </Animated.View>
           </ScrollView>
         </View>
-      </View>
+      </AnimatedPage>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <AnimatedPage style={styles.container}>
       <MeshGradient />
 
       <View style={styles.overlay}>
@@ -209,7 +210,10 @@ export default function ContractScreen() {
               </Text>
             </View>
 
-            <View style={[styles.markdownContainer, { backgroundColor: theme.surfaceSecondary, borderColor: theme.border }]}>
+            <View 
+              style={[styles.markdownContainer, { backgroundColor: theme.surfaceSecondary, borderColor: theme.border }]}
+              renderToHardwareTextureAndroid={true}
+            >
               <Markdown style={{
                 body: { color: theme.text, fontSize: 14, lineHeight: 22 },
                 heading1: { color: theme.primary, marginBottom: 10, fontSize: 22, fontWeight: '800' },
@@ -256,7 +260,7 @@ export default function ContractScreen() {
           />
         </View>
       </View>
-    </View>
+    </AnimatedPage>
   );
 }
 

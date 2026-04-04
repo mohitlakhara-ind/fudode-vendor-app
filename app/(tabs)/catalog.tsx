@@ -5,13 +5,14 @@ import { TabSwitcher } from '@/components/ui/TabSwitcher';
 import { Colors } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { fetchCategories, fetchItems, updateItemStatus } from '@/store/slices/menuSlice';
+import { createCategory, deleteCategory, fetchAddonGroups, fetchCategories, fetchItems, updateItemStatus } from '@/store/slices/menuSlice';
 import { RootState } from '@/store/store';
+import { MenuItemStatus } from '@/api/types';
 import { useRouter } from 'expo-router';
 import {
   BookOpen,
   List,
-  Plus
+  Plus,
 } from 'phosphor-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -30,6 +31,10 @@ import { CategoriesBottomSheet } from '@/components/menu/CategoriesBottomSheet';
 import { MenuCategory } from '@/components/menu/MenuCategory';
 import { PhotoPromoBanner } from '@/components/menu/PhotoPromoBanner';
 import { SearchBar } from '@/components/orders/SearchBar';
+import { AnimatedPage } from '@/components/ui/AnimatedPage';
+import { InputDialog } from '@/components/ui/InputDialog';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { MessageDialog } from '@/components/ui/MessageDialog';
 import { InventoryCategory } from '@/constants/mockInventory';
 
 export default function CatalogScreen() {
@@ -43,7 +48,7 @@ export default function CatalogScreen() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { categories, items, loading } = useAppSelector((state: RootState) => state.menu);
+  const { categories, items, addonGroups, loading } = useAppSelector((state: RootState) => state.menu);
   const { status: restaurantStatus } = useAppSelector((state: RootState) => state.restaurant);
   const { queue } = useAppSelector((state: RootState) => state.order);
 
@@ -52,15 +57,20 @@ export default function CatalogScreen() {
   // Initial Data Fetch
   useEffect(() => {
     dispatch(fetchCategories());
-    // No more blind fetchItems({}) that causes 500
-  }, [dispatch]);
-
-  // Fetch items for the first category once categories load
-  useEffect(() => {
-    if (categories && categories.length > 0 && items.length === 0 && !loading) {
-      dispatch(fetchItems({ categoryId: categories[0].id }));
+    if (activeTab === 'Add-ons') {
+      dispatch(fetchAddonGroups());
     }
-  }, [categories, dispatch, loading, items.length]);
+  }, [dispatch, activeTab]);
+
+  // Fetch items for ALL categories to populate the simplified unified menu view
+  useEffect(() => {
+    if (categories && categories.length > 0 && activeTab === 'All items') {
+      // Small delay or batch fetch could be better, but for now we fetch all if items are empty
+      if (items.length === 0 && !loading) {
+        dispatch(fetchItems({})); // Fetching without categoryId should return all items for the restaurant if API supports it
+      }
+    }
+  }, [categories, dispatch, loading, items.length, activeTab]);
 
   // Map and group items by category
   const inventory: InventoryCategory[] = useMemo(() => {
@@ -80,7 +90,7 @@ export default function CatalogScreen() {
           isInStock: item.status === 'AVAILABLE',
           price: item.variants?.[0]?.price || 0,
           description: item.description,
-          status: (item.status === 'AVAILABLE' ? 'live' : 'not-live') as 'live' | 'not-live',
+          status: item.status === 'AVAILABLE' ? 'live' : 'not-live',
         }))
     }));
   }, [categories, items]);
@@ -98,10 +108,59 @@ export default function CatalogScreen() {
   const [sheetType, setSheetType] = useState<'item' | 'subcategory'>('item');
   const [categoriesSheetVisible, setCategoriesSheetVisible] = useState(false);
   const [addItemSheetVisible, setAddItemSheetVisible] = useState(false);
+  
+  // Custom Modal States
+  const [showCreateCategoryModal, setShowCreateCategoryModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
+  const [pendingDeleteMessage, setPendingDeleteMessage] = useState('');
+  const [errorModal, setErrorModal] = useState({ visible: false, title: '', message: '' });
 
   const handleToggleCategory = (catId: string, isActive: boolean) => {
     // Category-wide toggle logic can go here if needed
     console.log('Toggle category:', catId, isActive);
+  };
+
+  const handleDeleteCategory = (id: string) => {
+    setCategoryToDelete(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteCategory = async (deleteItems = false) => {
+    if (!categoryToDelete) return;
+    
+    setIsProcessing(true);
+    const result = await dispatch(deleteCategory({ id: categoryToDelete, params: { deleteItems } }) as any);
+    setIsProcessing(false);
+    
+    if (deleteCategory.rejected.match(result)) {
+      const errorData = result.payload as any;
+      if (errorData?.data?.totalItems > 0) {
+        setPendingDeleteMessage(errorData.message || 'This category has items.');
+        setShowDeleteConfirm(false);
+        setTimeout(() => setShowBulkDeleteConfirm(true), 300);
+      } else {
+        setErrorModal({ visible: true, title: 'Error', message: errorData?.message || 'Failed to delete category' });
+      }
+    } else {
+      setShowDeleteConfirm(false);
+      setShowBulkDeleteConfirm(false);
+      setCategoryToDelete(null);
+    }
+  };
+
+  const handleCreateCategory = async (name: string) => {
+    setIsProcessing(true);
+    try {
+      await dispatch(createCategory({ name })).unwrap();
+      setShowCreateCategoryModal(false);
+    } catch (error: any) {
+      setErrorModal({ visible: true, title: 'Error', message: error?.message || 'Failed to create category' });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleToggleItemStatus = (catId: string, itemId: string, isInStock: boolean) => {
@@ -114,11 +173,11 @@ export default function CatalogScreen() {
     }
 
     // Turning ON
-    dispatch(updateItemStatus({ id: itemId, status: 'AVAILABLE' }));
+    dispatch(updateItemStatus({ id: itemId, status: MenuItemStatus.AVAILABLE }));
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+    <AnimatedPage style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <GlobalRestaurantHeader />
@@ -166,31 +225,85 @@ export default function CatalogScreen() {
           containerStyle={{ marginHorizontal: 16, marginTop: 16, marginBottom: 8 }}
         />
 
-        {/* Menu Categories */}
-        {inventory.length > 0 ? (
-          inventory.map(category => (
-            <MenuCategory
-              key={category.id}
-              category={category}
-              onToggleCategory={handleToggleCategory}
-              onToggleItemStock={handleToggleItemStatus}
-              onEditItem={(item, cat) => {
-                router.push({
-                  pathname: '/menu/item-details',
-                  params: { categoryName: cat.name, subCategoryName: 'Edit Item', itemId: item.id }
-                } as any);
-              }}
+        {activeTab === 'All items' ? (
+          /* Menu Categories */
+          inventory.length > 0 ? (
+            inventory.map(category => (
+              <MenuCategory
+                key={category.id}
+                category={category}
+                onToggleCategory={handleToggleCategory}
+                onToggleItemStock={handleToggleItemStatus}
+                onDeleteCategory={handleDeleteCategory}
+                onEditItem={(item, cat) => {
+                  router.push({
+                    pathname: '/menu/item-details',
+                    params: { categoryName: cat.name, subCategoryName: 'Edit Item', itemId: item.id }
+                  } as any);
+                }}
+              />
+            ))
+          ) : (
+            <EmptyState
+              icon={BookOpen}
+              title="Your Menu is Empty"
+              description="Start by adding your first category and item to show up on the customer app."
+              actionLabel="Add First Item"
+              onAction={() => router.push('/menu/add-item' as any)}
+              style={{ marginTop: 40, marginBottom: 100 }}
             />
-          ))
+          )
         ) : (
-          <EmptyState
-            icon={BookOpen}
-            title="Your Menu is Empty"
-            description="Start by adding your first category and item to show up on the customer app."
-            actionLabel="Add First Item"
-            onAction={() => router.push('/menu/add-item' as any)}
-            style={{ marginTop: 40, marginBottom: 100 }}
-          />
+          /* Add-ons Tab Content */
+          <View style={{ padding: 16 }}>
+            {addonGroups && addonGroups.length > 0 ? (
+              addonGroups.map(group => (
+                <Pressable 
+                  key={group.id} 
+                  onPress={() => router.push({ pathname: '/menu/addon-group-details', params: { id: group.id } })}
+                  style={[styles.addonGroupCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                >
+                  <View style={styles.addonGroupHeader}>
+                    <View style={{ flex: 1 }}>
+                      <ThemedText style={styles.addonGroupName}>{group.name}</ThemedText>
+                      <ThemedText style={styles.addonGroupDetails}>
+                        Select {group.minSelect} to {group.maxSelect} items
+                      </ThemedText>
+                    </View>
+                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                      <ThemedText style={[styles.addonGroupBadge, { backgroundColor: theme.primary + '20', color: theme.primary }]}>
+                        {group.isRequired ? 'Required' : 'Optional'}
+                      </ThemedText>
+                      <ThemedText style={{ color: theme.primary, fontSize: 12, fontWeight: '700' }}>Edit</ThemedText>
+                    </View>
+                  </View>
+                  {group.addons && group.addons.length > 0 && (
+                    <View style={{ marginTop: 12, gap: 4 }}>
+                      {group.addons.slice(0, 3).map((addon, idx) => (
+                        <ThemedText key={idx} style={{ fontSize: 12, color: theme.textSecondary }}>
+                          • {addon.name} (₹{addon.price})
+                        </ThemedText>
+                      ))}
+                      {group.addons.length > 3 && (
+                        <ThemedText style={{ fontSize: 11, color: theme.textSecondary, fontStyle: 'italic' }}>
+                          + {group.addons.length - 3} more items
+                        </ThemedText>
+                      )}
+                    </View>
+                  )}
+                </Pressable>
+              ))
+            ) : (
+              <EmptyState
+                icon={Plus}
+                title="No Add-on Groups"
+                description="Add-on groups like Extra Toppings or Dips help increase your order value."
+                actionLabel="Create Add-on Group"
+                onAction={() => console.log('Add addon group')}
+                style={{ marginTop: 40 }}
+              />
+            )}
+          </View>
         )}
       </ScrollView>
 
@@ -201,11 +314,8 @@ export default function CatalogScreen() {
         itemSubtitle={sheetType === 'item' ? activeItem?.categoryName : undefined}
         onClose={() => setShowStockSheet(false)}
         onConfirm={(data) => {
-          console.log('Catalog marking out of stock:', data);
-          if (sheetType === 'item') {
-            dispatch(updateItemStatus({ id: activeItem.id, status: 'SOLD_OUT' }));
-          } else {
-            // Category logic not yet fully implemented in slice but we can call multiple updateItemStatus if needed
+          if (sheetType === 'item' && activeItem) {
+            dispatch(updateItemStatus({ id: activeItem.id, status: MenuItemStatus.SOLD_OUT }));
           }
           setShowStockSheet(false);
         }}
@@ -222,9 +332,62 @@ export default function CatalogScreen() {
       <AddItemActionSheet
         visible={addItemSheetVisible}
         onClose={() => setAddItemSheetVisible(false)}
-        onAddItem={() => router.push('/menu/add-item' as any)}
-        onAddCategory={() => console.log('Add category')}
-        onAddSubCategory={() => console.log('Add sub category')}
+        onAddItem={() => {
+          setAddItemSheetVisible(false);
+          router.push('/menu/add-item' as any);
+        }}
+        onAddCategory={() => {
+          setAddItemSheetVisible(false);
+          setTimeout(() => setShowCreateCategoryModal(true), 400);
+        }}
+        onAddSubCategory={() => {
+          setAddItemSheetVisible(false);
+          router.push('/menu/add-item' as any); // Redirect to add item flow which forces sub-category selection
+        }}
+        onAddAddonGroup={() => {
+          setAddItemSheetVisible(false);
+          router.push('/menu/addon-group-details' as any);
+        }}
+      />
+
+      <InputDialog
+        visible={showCreateCategoryModal}
+        onClose={() => setShowCreateCategoryModal(false)}
+        onConfirm={handleCreateCategory}
+        title="New Category"
+        label="Category Name"
+        placeholder="e.g. Appetizers"
+        loading={isProcessing}
+      />
+
+      <ConfirmDialog
+        visible={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => confirmDeleteCategory(false)}
+        title="Delete Category"
+        message="Are you sure you want to delete this category?"
+        variant="danger"
+        confirmLabel="Delete"
+        loading={isProcessing}
+      />
+
+      <ConfirmDialog
+        visible={showBulkDeleteConfirm}
+        onClose={() => setShowBulkDeleteConfirm(false)}
+        onConfirm={() => confirmDeleteCategory(true)}
+        title="Category Not Empty"
+        message={`${pendingDeleteMessage} Do you want to delete the category and all its items?`}
+        variant="danger"
+        confirmLabel="Delete All"
+        loading={isProcessing}
+      />
+
+      <MessageDialog
+        visible={errorModal.visible}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={() => setErrorModal({ ...errorModal, visible: false })}
+        type="error"
       />
 
       {/* Floating Actions */}
@@ -255,7 +418,7 @@ export default function CatalogScreen() {
           <ThemedText style={[styles.addFabText, { color: theme.background }]}>ADD ITEM</ThemedText>
         </Pressable>
       </View>
-    </View>
+    </AnimatedPage>
   );
 }
 
@@ -360,5 +523,33 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 15,
     elevation: 12,
+  },
+  addonGroupCard: {
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  addonGroupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  addonGroupName: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  addonGroupBadge: {
+    fontSize: 10,
+    fontWeight: '800',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  addonGroupDetails: {
+    fontSize: 13,
+    opacity: 0.7,
   },
 });

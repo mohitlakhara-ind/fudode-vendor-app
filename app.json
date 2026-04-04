@@ -24,6 +24,7 @@
     },
     "android": {
       "package": "com.fudodeoffice.fudodevendorapp",
+      "largeHeap": true,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
@@ -45,7 +46,8 @@
         {
           "android": {
             "enableProguardInReleaseBuilds": true,
-            "shrinkResources": true
+            "shrinkResources": true,
+            "hardwareAccelerated": true
           }
         }
       ],

@@ -23,6 +23,7 @@ import { FilterSheet } from '@/components/common/FilterSheet';
 import { ThemedText } from '@/components/themed-text';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
 import { GlobalRestaurantHeader } from '@/components/common/GlobalRestaurantHeader';
+import { AnimatedPage } from '@/components/ui/AnimatedPage';
 import {
   Dimensions,
   Pressable,
@@ -115,7 +116,7 @@ export default function EarningsScreen() {
   const [selectedRange, setSelectedRange] = useState('week');
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+    <AnimatedPage style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <GlobalRestaurantHeader />
 
       <TabSwitcher
@@ -211,7 +212,7 @@ export default function EarningsScreen() {
           setShowReportFormat(false);
         }}
       />
-    </View>
+    </AnimatedPage>
   );
 }
 

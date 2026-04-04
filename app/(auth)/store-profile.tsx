@@ -33,6 +33,7 @@ import {
 } from 'react-native';
 
 import { useDispatch, useSelector } from 'react-redux';
+import { AnimatedPage } from '@/components/ui/AnimatedPage';
 
 const FormInput = ({ value, onChangeText, placeholder, keyboardType = 'default', error, icon: Icon }: any) => {
   const { colorScheme } = useAppTheme();
@@ -318,28 +319,45 @@ export default function StoreProfileScreen() {
       result = await dispatch(submitStep1(apiPayload));
     }
 
-    if (submitStep1.fulfilled.match(result) || updateStep1.fulfilled.match(result)) {
-      // PERFORM HANDSHAKE
-      const restaurantId = result.payload?.data?.restaurantId || result.payload?.restaurantId;
-      if (restaurantId) {
-        console.log(`🚀 [Handshake] Step 1 success. Initiating handshake for Restaurant: ${restaurantId}`);
-        const handshakeResult = await dispatch(updateRestaurantToken({
-          restaurantId
-        }));
+    const isSuccess = submitStep1.fulfilled.match(result) || updateStep1.fulfilled.match(result);
+    // 409 Conflict means record already exists, which we can treat as success for progression
+    const isAlreadyExists = submitStep1.rejected.match(result) && 
+      (result.payload as string)?.toLowerCase().includes('already exists');
 
-        if (updateRestaurantToken.fulfilled.match(handshakeResult)) {
-          console.log('✅ [Handshake] Success. Refreshing status with new scoped token.');
-          await dispatch(getRestaurantStatus());
-        } else {
-          console.error('❌ [Handshake] Failed. Staying on profile page.');
-          Alert.alert('Session Error', 'Handshake failed. Please try saving again.');
+    if (isSuccess || isAlreadyExists) {
+      Alert.alert(
+        "Success", 
+        "Store profile submitted successfully!",
+        [{ text: "OK", onPress: () => router.replace('/(auth)/onboarding') }]
+      );
+
+      // PERFORM HANDSHAKE (Only if actually successful)
+      if (isSuccess) {
+        const restaurantId = result.payload?.data?.restaurantId || result.payload?.restaurantId;
+        if (restaurantId) {
+          console.log(`🚀 [Handshake] Step 1 success. Initiating handshake for Restaurant: ${restaurantId}`);
+          const handshakeResult = await dispatch(updateRestaurantToken({
+            restaurantId
+          }));
+
+          if (updateRestaurantToken.fulfilled.match(handshakeResult)) {
+            console.log('✅ [Handshake] Success. Refreshing status with new scoped token.');
+            await dispatch(getRestaurantStatus());
+          }
         }
+      } else {
+        // Just refresh status if it already existed
+        await dispatch(getRestaurantStatus());
       }
+    } else {
+      // Real error
+      const errorMsg = result.payload as string || 'Failed to save profile';
+      Alert.alert('Error', errorMsg);
     }
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <AnimatedPage style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <View style={styles.header}>
@@ -447,7 +465,7 @@ export default function StoreProfileScreen() {
           />
         </View>
       </KeyboardAvoidingView>
-    </View>
+    </AnimatedPage>
   );
 }
 

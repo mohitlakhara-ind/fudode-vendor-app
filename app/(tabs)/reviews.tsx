@@ -11,6 +11,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
 import { CalendarBlank, ChatCircleDots, Info, Funnel, CaretDown, StarHalf, MagnifyingGlass } from 'phosphor-react-native';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { AnimatedPage } from '@/components/ui/AnimatedPage';
 import React, { useState, useMemo, useEffect } from 'react';
 import { ScrollView, StatusBar, StyleSheet, View, Pressable, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -81,7 +82,7 @@ export default function ReviewsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+    <AnimatedPage style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <GlobalRestaurantHeader />
@@ -214,7 +215,7 @@ export default function ReviewsScreen() {
           setShowFilters(false);
         }}
       />
-    </View>
+    </AnimatedPage>
   );
 }
 

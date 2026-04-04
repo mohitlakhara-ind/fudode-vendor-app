@@ -6,6 +6,7 @@ import {
   AddonGroup, 
   CategoryCreateRequest, 
   CategoryUpdateRequest,
+  CategoryDeleteRequest,
   ItemCreateRequest,
   ItemUpdateRequest,
   ItemStatusUpdate,
@@ -68,12 +69,12 @@ export const updateCategory = createAsyncThunk(
 
 export const deleteCategory = createAsyncThunk(
   'menu/deleteCategory',
-  async (id: string, { rejectWithValue }) => {
+  async ({ id, params }: { id: string; params?: CategoryDeleteRequest }, { rejectWithValue }) => {
     try {
-      await api.delete(`/menu/categories/${id}`);
+      await api.delete(`/menu/categories/${id}`, { params });
       return id;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Failed to delete category');
+      return rejectWithValue(error.response?.data || 'Failed to delete category');
     }
   }
 );
@@ -152,6 +153,18 @@ export const updateItemStatus = createAsyncThunk(
   }
 );
 
+export const deleteItem = createAsyncThunk(
+  'menu/deleteItem',
+  async (id: string, { rejectWithValue }) => {
+    try {
+      await api.delete(`/menu/items/${id}`);
+      return id;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.error || 'Failed to delete item');
+    }
+  }
+);
+
 /** 4.3 Addon Groups */
 
 export const fetchAddonGroups = createAsyncThunk(
@@ -225,6 +238,13 @@ const menuSlice = createSlice({
         state.categories = state.categories.filter(c => c.id !== action.payload);
         state.loading = false;
       })
+      .addCase(updateCategory.fulfilled, (state, action) => {
+        const index = state.categories.findIndex(c => c.id === action.payload.id);
+        if (index !== -1) {
+          state.categories[index] = action.payload;
+        }
+        state.loading = false;
+      })
       // Items
       .addCase(fetchItems.fulfilled, (state, action) => {
         state.items = action.payload || [];
@@ -239,6 +259,17 @@ const menuSlice = createSlice({
         if (index !== -1) {
           state.items[index] = action.payload;
         }
+        state.loading = false;
+      })
+      .addCase(updateItem.fulfilled, (state, action) => {
+        const index = state.items.findIndex(i => i.id === action.payload.id);
+        if (index !== -1) {
+          state.items[index] = action.payload;
+        }
+        state.loading = false;
+      })
+      .addCase(deleteItem.fulfilled, (state, action) => {
+        state.items = state.items.filter(i => i.id !== action.payload);
         state.loading = false;
       })
       // Addon Groups

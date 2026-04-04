@@ -15,7 +15,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
-import { GlassView } from './GlassView';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SWIPE_CLOSE_THRESHOLD = 150;
@@ -29,6 +28,7 @@ interface ModalWrapperProps {
   fullHeight?: boolean;
   isNonDismissible?: boolean;
   scrollEnabled?: boolean;
+  variant?: 'bottom-sheet' | 'centered';
 }
 
 export const ModalWrapper = ({
@@ -39,7 +39,8 @@ export const ModalWrapper = ({
   footer,
   fullHeight = false,
   isNonDismissible = false,
-  scrollEnabled = true
+  scrollEnabled = true,
+  variant = 'bottom-sheet'
 }: ModalWrapperProps) => {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
@@ -100,51 +101,62 @@ export const ModalWrapper = ({
   }));
 
   const contentStyle = useAnimatedStyle(() => {
-    const visibilityOffset = interpolate(progress.value, [0, 1], [SCREEN_HEIGHT, 0]);
+    if (variant === 'centered') {
+      return {
+        transform: [
+          { scale: interpolate(progress.value, [0, 1], [0.9, 1]) },
+          { translateY: translateY.value }
+        ],
+        opacity: progress.value,
+      };
+    }
     return {
-      transform: [{
-        translateY: visibilityOffset + translateY.value
-      }]
+      transform: [
+        { translateY: interpolate(progress.value, [0, 1], [SCREEN_HEIGHT, 0]) + translateY.value }
+      ]
     };
   });
 
   if (!shouldRender) return null;
 
-  const sheetBg = isDark ? 'rgba(31, 41, 55, 0.7)' : 'rgba(255, 255, 255, 0.75)';
-
   return (
-    <View style={styles.rootContainer} pointerEvents="box-none">
+    <View style={[styles.rootContainer, variant === 'centered' && styles.centeredRoot]} pointerEvents="box-none">
       <Animated.View style={[styles.overlay, backdropStyle]}>
-        <GlassView
-          intensity={5}
-          tint={isDark ? 'dark' : 'light'}
-          style={StyleSheet.absoluteFill}
-        />
-        <Pressable
-          style={styles.dismissArea}
-          onPress={isNonDismissible ? undefined : handleClose}
+        <Pressable 
+          style={styles.dismissArea} 
+          onPress={isNonDismissible ? undefined : handleClose} 
         />
       </Animated.View>
-
+      
       <GestureDetector gesture={gesture}>
-        <Animated.View style={[
-          styles.content,
-          contentStyle,
-          {
-            backgroundColor: theme.surface,
-            paddingBottom: insets.bottom + 10,
-            height: fullHeight ? '80%' : 'auto',
-            maxHeight: '95%',
-          }
-        ]}>
-          <View style={[StyleSheet.absoluteFill, styles.contentBackground, { backgroundColor: isDark ? 'rgba(31, 41, 55, 0.7)' : 'rgba(255, 255, 255, 0.8)' }]}>
-
-          </View>
+        <Animated.View 
+          style={[
+            styles.content,
+            { backgroundColor: theme.surface },
+            variant === 'bottom-sheet' ? [styles.bottomSheetContent, { paddingBottom: insets.bottom + 20 }] : styles.centeredContent,
+            fullHeight && variant === 'bottom-sheet' && { height: SCREEN_HEIGHT * 0.9 },
+            contentStyle,
+            { flexShrink: 1 } // Crucial for Android ScrollView inside centered modals
+          ]}
+        >
+          <View style={[styles.contentBackground, StyleSheet.absoluteFill, variant === 'bottom-sheet' ? styles.bottomSheetContent : styles.centeredContent, { backgroundColor: theme.surface }]} />
+          
+          {variant === 'bottom-sheet' && !isNonDismissible && (
+            <View style={styles.dragHandleContainer}>
+              <View style={[styles.dragHandle, { backgroundColor: theme.textSecondary }]} />
+            </View>
+          )}
 
           {!isNonDismissible && (
-            <Pressable style={styles.closeButton} onPress={handleClose}>
-              <View style={[styles.closeIconCircle, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                <X size={20} weight="bold" color={theme.text} />
+            <Pressable 
+              onPress={handleClose} 
+              style={[
+                styles.closeButton,
+                variant === 'centered' && styles.centeredCloseButton
+              ]}
+            >
+              <View style={[styles.closeIconCircle, { backgroundColor: theme.surfaceSecondary }]}>
+                <X size={24} color={theme.text} />
               </View>
             </Pressable>
           )}
@@ -161,8 +173,11 @@ export const ModalWrapper = ({
           {scrollEnabled ? (
             <ScrollView
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.scrollContent}
-              bounces={false}
+              contentContainerStyle={[
+                styles.scrollContent,
+                variant === 'bottom-sheet' && { paddingBottom: 20 }
+              ]}
+              bounces={variant === 'bottom-sheet'}
             >
               {children}
             </ScrollView>
@@ -189,6 +204,11 @@ const styles = StyleSheet.create({
     zIndex: 3000,
     justifyContent: 'flex-end',
   },
+  centeredRoot: {
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 40, // Prevent modal from touching top/bottom on tight screens
+  },
   overlay: {
     position: 'absolute',
     top: -SCREEN_HEIGHT - 10, // Extend far up to cover any parent padding/gaps
@@ -201,9 +221,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingTop: 12,
+    paddingTop: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
@@ -211,9 +229,16 @@ const styles = StyleSheet.create({
     elevation: 20,
     width: '100%',
   },
-  contentBackground: {
+  centeredContent: {
+    borderRadius: 32,
+    maxHeight: SCREEN_HEIGHT * 0.8,
+    overflow: 'hidden',
+  },
+  bottomSheetContent: {
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
+  },
+  contentBackground: {
     overflow: 'hidden',
   },
   dragHandleContainer: {
@@ -233,6 +258,11 @@ const styles = StyleSheet.create({
     top: -36,
     alignSelf: 'center',
     zIndex: 3000,
+  },
+  centeredCloseButton: {
+    top: 12,
+    right: 12,
+    alignSelf: 'flex-end',
   },
   closeIconCircle: {
     width: 56,

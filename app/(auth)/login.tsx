@@ -21,6 +21,7 @@ import { MeshGradient } from '@/components/ui/MeshGradient';
 import { PremiumButton } from '@/components/ui/PremiumButton';
 import { requestOtp } from '@/store/slices/authSlice';
 import { GlassView } from '@/components/ui/GlassView';
+import { AnimatedPage } from '@/components/ui/AnimatedPage';
 
 const { width } = Dimensions.get('window');
 
@@ -57,7 +58,7 @@ export default function LoginScreen() {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <AnimatedPage style={[styles.container, { backgroundColor: theme.background }]}>
         <MeshGradient />
         
         <KeyboardAvoidingView
@@ -136,7 +137,7 @@ export default function LoginScreen() {
             />
           </GlassView>
         </KeyboardAvoidingView>
-      </View>
+      </AnimatedPage>
     </TouchableWithoutFeedback>
   );
 }

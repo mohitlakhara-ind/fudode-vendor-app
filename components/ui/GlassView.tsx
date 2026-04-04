@@ -42,7 +42,11 @@ export const GlassView = ({
   };
 
   return (
-    <View style={[styles.container, style]}>
+    <View 
+      style={[styles.container, style]}
+      renderToHardwareTextureAndroid={true}
+      collapsable={false}
+    >
       <BlurView
         intensity={intensity / 2}
         tint={tint}

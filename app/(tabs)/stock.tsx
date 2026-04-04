@@ -13,6 +13,7 @@ import { RootState } from '@/store/store';
 import { useRouter } from 'expo-router';
 import { List, MagnifyingGlass, WarningCircle } from 'phosphor-react-native';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { AnimatedPage } from '@/components/ui/AnimatedPage';
 import React, { useState, useMemo, useEffect } from 'react';
 import { ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -112,7 +113,7 @@ export default function StockScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+    <AnimatedPage style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <GlobalRestaurantHeader />
@@ -244,7 +245,7 @@ export default function StockScreen() {
           }
         }}
       />
-    </View>
+    </AnimatedPage>
   );
 }
 

@@ -33,6 +33,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import { AnimatedPage } from '@/components/ui/AnimatedPage';
 
 const FormInput = ({ value, onChangeText, placeholder, keyboardType = 'default', error, icon: Icon }: any) => {
   const { colorScheme } = useAppTheme();
@@ -82,10 +83,11 @@ export default function OwnerIdentityScreen() {
   const isUpdateMode = !!status?.profileData?.isOwnerProfileComplete;
   const hasPrefilled = useRef(false);
 
-  // 1. Fetch current status on mount
+  // 1. Fetch current status on mount - REMOVED redundant dispatch
+  // Root _layout.tsx already handles the initial status fetch when authenticated.
+  // We only need to fetch here if the user manually requests a refresh.
   useEffect(() => {
-    console.log('🔄 [OwnerProfile] Screen mounted. Dispatching status fetch...');
-    dispatch(getRestaurantStatus());
+    console.log('🔄 [OwnerProfile] Screen mounted.');
   }, []);
 
   // 2. Prefill effect with "Breakpoint" logging
@@ -189,7 +191,7 @@ export default function OwnerIdentityScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <AnimatedPage style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <View style={styles.header}>
@@ -197,19 +199,35 @@ export default function OwnerIdentityScreen() {
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent} 
+          showsVerticalScrollIndicator={false}
+          renderToHardwareTextureAndroid={true}
+          collapsable={false}
+        >
           
           <View style={styles.avatarSection}>
-            <TouchableOpacity onPress={() => pickImage('avatar')} style={[styles.avatarWrapper, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary }]}>
-              {images.avatar ? (
-                <Image source={{ uri: images.avatar }} style={styles.avatar} />
-              ) : (
-                <User size={40} color={theme.icon} />
-              )}
-              <View style={[styles.avatarAdd, { backgroundColor: theme.primary }]}>
-                <PlusCircle size={20} color="#000" weight="fill" />
-              </View>
-            </TouchableOpacity>
+            <View 
+              renderToHardwareTextureAndroid={true}
+              collapsable={false}
+              style={[styles.avatarWrapper, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary }]}
+            >
+              <TouchableOpacity 
+                onPress={() => pickImage('avatar')} 
+                style={StyleSheet.absoluteFill}
+              >
+                {images.avatar ? (
+                  <Image source={{ uri: images.avatar }} style={styles.avatar} />
+                ) : (
+                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <User size={40} color={theme.icon} />
+                  </View>
+                )}
+                <View style={[styles.avatarAdd, { backgroundColor: theme.primary }]}>
+                  <PlusCircle size={20} color="#000" weight="fill" />
+                </View>
+              </TouchableOpacity>
+            </View>
             <Text style={[styles.avatarLabel, { color: theme.text }]}>Upload Profile Picture</Text>
           </View>
 
@@ -249,46 +267,72 @@ export default function OwnerIdentityScreen() {
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Aadhaar Card Verification</Text>
           
           <View style={styles.docGrid}>
-            <TouchableOpacity 
-              style={[styles.docPicker, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary }]} 
-              onPress={() => pickImage('aadhaarFront')}
+            <View 
+              style={[styles.docPicker, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary }]}
+              renderToHardwareTextureAndroid={true}
+              collapsable={false}
             >
-              {images.aadhaarFront ? (
-                <Image source={{ uri: images.aadhaarFront }} style={styles.docImage} />
-              ) : (
-                <>
-                  <Camera size={24} color={theme.icon} />
-                  <Text style={[styles.docLabel, { color: theme.icon }]}>Front Side</Text>
-                </>
-              )}
-              {images.aadhaarFront && (
-                <View style={styles.doneBadge}>
-                  <CheckCircle size={18} color={theme.success} weight="fill" />
+              <TouchableOpacity 
+                style={StyleSheet.absoluteFill} 
+                onPress={() => pickImage('aadhaarFront')}
+              >
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                  {images.aadhaarFront ? (
+                    <Image source={{ uri: images.aadhaarFront }} style={styles.docImage} />
+                  ) : (
+                    <>
+                      <Camera size={24} color={theme.icon} />
+                      <Text style={[styles.docLabel, { color: theme.icon }]}>Front Side</Text>
+                    </>
+                  )}
                 </View>
-              )}
-            </TouchableOpacity>
+                {images.aadhaarFront && (
+                  <View style={styles.doneBadge}>
+                    <CheckCircle size={18} color={theme.success} weight="fill" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
 
-            <TouchableOpacity 
-              style={[styles.docPicker, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary }]} 
-              onPress={() => pickImage('aadhaarBack')}
+            <View 
+              style={[styles.docPicker, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary }]}
+              renderToHardwareTextureAndroid={true}
+              collapsable={false}
             >
-              {images.aadhaarBack ? (
-                <Image source={{ uri: images.aadhaarBack }} style={styles.docImage} />
-              ) : (
-                <>
-                  <Camera size={24} color={theme.icon} />
-                  <Text style={[styles.docLabel, { color: theme.icon }]}>Back Side</Text>
-                </>
-              )}
-              {images.aadhaarBack && (
-                <View style={styles.doneBadge}>
-                  <CheckCircle size={18} color={theme.success} weight="fill" />
+              <TouchableOpacity 
+                style={StyleSheet.absoluteFill} 
+                onPress={() => pickImage('aadhaarBack')}
+              >
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                  {images.aadhaarBack ? (
+                    <Image source={{ uri: images.aadhaarBack }} style={styles.docImage} />
+                  ) : (
+                    <>
+                      <Camera size={24} color={theme.icon} />
+                      <Text style={[styles.docLabel, { color: theme.icon }]}>Back Side</Text>
+                    </>
+                  )}
                 </View>
-              )}
-            </TouchableOpacity>
+                {images.aadhaarBack && (
+                  <View style={styles.doneBadge}>
+                    <CheckCircle size={18} color={theme.success} weight="fill" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {error && <Text style={[styles.globalError, { color: theme.error }]}>{error}</Text>}
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={[styles.globalError, { color: theme.error }]}>{error}</Text>
+              <TouchableOpacity 
+                style={[styles.retryButton, { borderColor: theme.error }]} 
+                onPress={() => dispatch(getRestaurantStatus())}
+              >
+                <Text style={[styles.retryText, { color: theme.error }]}>Retry Connection</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </ScrollView>
 
         <GlassView intensity={80} tint={isDark ? 'dark' : 'light'} style={styles.footer}>
@@ -300,7 +344,7 @@ export default function OwnerIdentityScreen() {
           />
         </GlassView>
       </KeyboardAvoidingView>
-    </View>
+    </AnimatedPage>
   );
 }
 
@@ -334,7 +378,27 @@ const styles = StyleSheet.create({
   docImage: { width: '100%', height: '100%' },
   docLabel: { fontSize: 12, marginTop: 8, fontWeight: '600' },
   doneBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: '#fff', borderRadius: 10 },
-  globalError: { textAlign: 'center', marginVertical: 10, fontWeight: '600' },
+  globalError: { textAlign: 'center', fontWeight: '800', fontSize: 14, marginBottom: 8 },
+  errorContainer: { 
+    backgroundColor: 'rgba(239, 68, 68, 0.1)', 
+    padding: 16, 
+    borderRadius: 16, 
+    marginBottom: 20, 
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)'
+  },
+  retryButton: { 
+    paddingHorizontal: 16, 
+    paddingVertical: 8, 
+    borderRadius: 12, 
+    borderWidth: 1.5,
+    marginTop: 4
+  },
+  retryText: { 
+    fontSize: 13, 
+    fontWeight: '700' 
+  },
   footer: { 
     position: 'absolute', 
     bottom: 0, 

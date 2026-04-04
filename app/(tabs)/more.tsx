@@ -24,6 +24,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View, Linking } from 'r
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { PremiumButton } from '@/components/ui/PremiumButton';
+import { AnimatedPage } from '@/components/ui/AnimatedPage';
 
 export default function MoreScreen() {
   const { colorScheme, themeMode, setThemeMode } = useAppTheme();
@@ -115,7 +116,7 @@ export default function MoreScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+    <AnimatedPage style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <GlobalRestaurantHeader />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: queue.length > 0 ? 240 : 120 }]}>
 
@@ -227,7 +228,7 @@ export default function MoreScreen() {
           setFeedbackVisible(false);
         }}
       />
-    </View>
+    </AnimatedPage>
   );
 }
 

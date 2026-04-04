@@ -16,9 +16,10 @@ interface MenuCategoryProps {
   onToggleCategory?: (id: string, active: boolean) => void;
   onToggleItemStock?: (catId: string, itemId: string, inStock: boolean) => void;
   onEditItem?: (item: InventoryItem, category: InventoryCategory) => void;
+  onDeleteCategory?: (id: string) => void;
 }
 
-export const MenuCategory = ({ category, onToggleCategory, onToggleItemStock, onEditItem }: MenuCategoryProps) => {
+export const MenuCategory = ({ category, onToggleCategory, onToggleItemStock, onEditItem, onDeleteCategory }: MenuCategoryProps) => {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
   const [isExpanded, setIsExpanded] = useState(true);
@@ -43,6 +44,12 @@ export const MenuCategory = ({ category, onToggleCategory, onToggleItemStock, on
           </View>
         </View>
         <View style={styles.headerActions}>
+          <Pressable 
+            onPress={() => onDeleteCategory?.(category.id)} 
+            style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 8 }]}
+          >
+            <DotsThreeVertical size={20} color={theme.textSecondary} />
+          </Pressable>
           <PremiumSwitch 
             value={category.isActive} 
             onValueChange={(val) => onToggleCategory?.(category.id, val)} 

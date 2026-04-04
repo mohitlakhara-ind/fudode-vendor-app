@@ -114,12 +114,19 @@ export interface OwnerProfile {
   verificationStatus: OwnerProfileStatus;
 }
 
+export enum CategoryStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+}
+
 export interface Category {
   id: string;
   name: string;
   parentCategoryId?: string;
-  order?: number;
+  sortOrder: number;
+  status: CategoryStatus;
   items?: MenuItem[];
+  subCategories?: Category[];
 }
 
 export interface CategoryCreateRequest {
@@ -130,6 +137,18 @@ export interface CategoryCreateRequest {
 export interface CategoryUpdateRequest {
   name?: string;
   sortOrder?: number;
+  status?: CategoryStatus;
+}
+
+export interface CategoryDeleteRequest {
+  moveItemsTo?: string;
+  deleteItems?: boolean;
+}
+
+export enum MenuItemStatus {
+  AVAILABLE = 'AVAILABLE',
+  SOLD_OUT = 'SOLD_OUT',
+  HIDDEN = 'HIDDEN',
 }
 
 export interface MenuItem {
@@ -143,14 +162,22 @@ export interface MenuItem {
   variants: MenuVariant[];
   tags?: string[];
   addonGroupIds?: string[];
-  status: 'AVAILABLE' | 'SOLD_OUT' | 'HIDDEN';
-  order?: number;
+  status: MenuItemStatus;
+  sortOrder: number;
+  isLive: boolean;
+}
+
+export enum VariantStatus {
+  AVAILABLE = 'AVAILABLE',
+  SOLD_OUT = 'SOLD_OUT',
 }
 
 export interface MenuVariant {
+  id?: string;
   name: string;
   price: number;
   isDefault: boolean;
+  status?: VariantStatus;
 }
 
 export interface ItemCreateRequest {
@@ -169,7 +196,14 @@ export interface ItemUpdateRequest extends Partial<Omit<ItemCreateRequest, 'cate
 
 export interface ItemStatusUpdate {
   id: string;
-  status: 'AVAILABLE' | 'SOLD_OUT' | 'HIDDEN';
+  status: MenuItemStatus;
+}
+
+export interface Addon {
+  id: string;
+  name: string;
+  price: number;
+  status: 'AVAILABLE' | 'SOLD_OUT';
 }
 
 export interface AddonGroup {
@@ -178,7 +212,7 @@ export interface AddonGroup {
   minSelect: number;
   maxSelect: number;
   isRequired: boolean;
-  addons?: any[]; // Detailed addon info if needed later
+  addons: Addon[];
 }
 
 export interface AddonGroupCreateRequest {
@@ -186,6 +220,7 @@ export interface AddonGroupCreateRequest {
   minSelect: number;
   maxSelect: number;
   isRequired: boolean;
+  addons: Omit<Addon, 'id'>[];
 }
 
 export interface KycOverallStatus {

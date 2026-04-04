@@ -180,9 +180,21 @@ export const PremiumButton = ({
         <ActivityIndicator color={getTextStyle().color} size="small" />
       ) : (
         <View style={[styles.content, { paddingHorizontal: getSizeStyle().paddingHorizontal, paddingVertical: getSizeStyle().paddingVertical }]}>
-          {leftIcon && <View style={styles.iconLeft}>{leftIcon}</View>}
+          {leftIcon && (
+            <View style={styles.iconLeft}>
+              {React.isValidElement(leftIcon) 
+                ? React.cloneElement(leftIcon as React.ReactElement, { color: getTextStyle().color } as any)
+                : leftIcon}
+            </View>
+          )}
           <Text style={[getTextStyle(), textStyle]}>{label}</Text>
-          {rightIcon && <View style={styles.iconRight}>{rightIcon}</View>}
+          {rightIcon && (
+            <View style={styles.iconRight}>
+              {React.isValidElement(rightIcon)
+                ? React.cloneElement(rightIcon as React.ReactElement, { color: getTextStyle().color } as any)
+                : rightIcon}
+            </View>
+          )}
         </View>
       )}
     </TouchableOpacity>

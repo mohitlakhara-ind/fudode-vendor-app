@@ -11,17 +11,20 @@ interface AnimatedCardProps {
   children: React.ReactNode;
   index?: number;
   delay?: number;
+  disableOpacity?: boolean;
 }
 
-export const AnimatedCard = ({ children, index = 0, delay = 100 }: AnimatedCardProps) => {
-  const opacity = useSharedValue(0);
+export const AnimatedCard = ({ children, index = 0, delay = 100, disableOpacity = false }: AnimatedCardProps) => {
+  const opacity = useSharedValue(disableOpacity ? 1 : 0);
   const translateY = useSharedValue(20);
 
   useEffect(() => {
-    opacity.value = withDelay(
-      index * delay, 
-      withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) })
-    );
+    if (!disableOpacity) {
+      opacity.value = withDelay(
+        index * delay, 
+        withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) })
+      );
+    }
     translateY.value = withDelay(
       index * delay, 
       withTiming(0, { duration: 500, easing: Easing.out(Easing.quad) })

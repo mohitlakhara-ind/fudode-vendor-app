@@ -342,7 +342,7 @@ export const OrderCard = (props: OrderCardProps) => {
   const statusColor = StatusColors[props.status as keyof typeof StatusColors] || theme.primary;
 
   return (
-    <AnimatedCard>
+    <AnimatedCard disableOpacity={true}>
       <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <OrderCardContent {...props} />
       </View>
@@ -361,8 +361,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.15,
     shadowRadius: 16,
-    // Elevation for Android
-    elevation: 12,
+
   },
   headerRow: {
     flexDirection: 'row',

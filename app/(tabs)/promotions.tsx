@@ -9,6 +9,7 @@ import { ThemedText } from '@/components/themed-text';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlobalRestaurantHeader } from '@/components/common/GlobalRestaurantHeader';
+import { AnimatedPage } from '@/components/ui/AnimatedPage';
 import { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
@@ -51,7 +52,7 @@ export default function PromotionsScreen() {
   const { queue } = useSelector((state: RootState) => state.order);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+    <AnimatedPage style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       
       <GlobalRestaurantHeader />
@@ -204,7 +205,7 @@ export default function PromotionsScreen() {
         </View>
 
       </ScrollView>
-    </View>
+    </AnimatedPage>
   );
 }
 

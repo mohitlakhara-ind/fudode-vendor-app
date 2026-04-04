@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, SafeAreaView } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, SafeAreaView, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CaretLeft, CaretRight, Plus, FolderOpen } from 'phosphor-react-native';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -8,50 +8,87 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { Colors, Typography } from '@/constants/theme';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { createCategory, fetchCategories } from '@/store/slices/menuSlice';
+import { RootState } from '@/store/store';
+import { InputDialog } from '@/components/ui/InputDialog';
 
 export default function AddItemCategoryScreen() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
   const insets = useSafeAreaInsets();
   
-  // Mock categories
-  const [categories] = useState([
-    { id: '1', name: 'Appetizers' },
-    { id: '2', name: 'Main Course' },
-    { id: '3', name: 'Desserts' },
-    { id: '4', name: 'Beverages' },
-  ]);
+  const { categories, loading } = useAppSelector((state: RootState) => state.menu);
+  
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+
+  // Filter for top-level categories
+  const rootCategories = categories.filter(cat => !cat.parentCategoryId);
+
+  useEffect(() => {
+    if (categories.length === 0) {
+      dispatch(fetchCategories());
+    }
+  }, [dispatch, categories.length]);
+
+  const handleCreateCategory = (name: string) => {
+    setIsCreating(true);
+    dispatch(createCategory({ name }))
+      .unwrap()
+      .then(() => {
+        setShowCreateModal(false);
+      })
+      .finally(() => {
+        setIsCreating(false);
+      });
+  };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable 
+          onPress={() => router.back()} 
+          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
+        >
           <CaretLeft size={24} color={theme.text} />
         </Pressable>
         <ThemedText style={[styles.headerTitle, { color: theme.text }]}>Select Category</ThemedText>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <ThemedText style={[styles.instruction, { color: theme.textSecondary }]}>
-          Choose a category for the new item
-        </ThemedText>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.instructionContainer}>
+          <ThemedText style={[styles.instruction, { color: theme.textSecondary }]}>
+            Choose a category for the new item
+          </ThemedText>
+        </View>
 
-        <View style={[styles.listContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          {categories.length > 0 ? (
-            categories.map((cat, index) => (
+        <View style={styles.listWrapper}>
+          {loading && categories.length === 0 ? (
+            <ActivityIndicator size="large" color={theme.primary} style={{ marginVertical: 40 }} />
+          ) : rootCategories.length > 0 ? (
+            rootCategories.map((cat) => (
               <Pressable
                 key={cat.id}
                 style={({ pressed }) => [
-                  styles.row,
-                  { borderBottomColor: theme.border },
-                  index === categories.length - 1 && { borderBottomWidth: 0 },
-                  pressed && { backgroundColor: theme.surfaceSecondary }
+                  styles.card,
+                  { backgroundColor: theme.surface, borderColor: theme.border },
+                  pressed && { backgroundColor: theme.surfaceSecondary, transform: [{ scale: 0.98 }] }
                 ]}
                 onPress={() => router.push({ pathname: '/menu/choose-sub-category', params: { categoryId: cat.id, categoryName: cat.name } })}
               >
-                <ThemedText style={[styles.rowText, { color: theme.text }]}>{cat.name}</ThemedText>
+                <View style={styles.cardContent}>
+                  <View style={[styles.iconBox, { backgroundColor: theme.primary + '10' }]}>
+                    <FolderOpen size={22} color={theme.primary} weight="duotone" />
+                  </View>
+                  <ThemedText style={[styles.cardText, { color: theme.text }]}>{cat.name}</ThemedText>
+                </View>
                 <CaretRight size={20} color={theme.textSecondary} />
               </Pressable>
             ))
@@ -60,7 +97,7 @@ export default function AddItemCategoryScreen() {
               icon={FolderOpen}
               title="No Categories"
               description="You need at least one category to add items. Create your first one below."
-              style={{ paddingVertical: 20 }}
+              style={{ marginVertical: 40 }}
             />
           )}
         </View>
@@ -68,14 +105,27 @@ export default function AddItemCategoryScreen() {
         <Pressable
           style={({ pressed }) => [
             styles.addNewBtn,
-            { borderColor: theme.border + '30', backgroundColor: pressed ? theme.surfaceSecondary : 'transparent' }
+            { backgroundColor: pressed ? theme.surfaceSecondary : 'transparent', borderColor: theme.primary + '40' }
           ]}
+          onPress={() => setShowCreateModal(true)}
         >
-          <Plus size={20} color={theme.primary} />
+          <View style={[styles.plusIcon, { backgroundColor: theme.primary }]}>
+            <Plus size={18} color="#FFF" weight="bold" />
+          </View>
           <ThemedText style={[styles.addNewText, { color: theme.primary }]}>Create New Category</ThemedText>
         </Pressable>
+
+        <InputDialog
+          visible={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onConfirm={handleCreateCategory}
+          title="New Category"
+          label="Category Name"
+          placeholder="e.g. Italian, Desserts"
+          loading={isCreating}
+        />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -100,41 +150,73 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
+    flexGrow: 1,
+  },
+  instructionContainer: {
+    marginBottom: 20,
   },
   instruction: {
     ...Typography.BodyRegular,
-    marginBottom: 16,
+    opacity: 0.8,
   },
-  listContainer: {
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: 'hidden',
-    marginBottom: 24,
+  listWrapper: {
+    flex: 1,
+    gap: 20, // Increased gap for visual separation
+    marginBottom: 32,
   },
-  row: {
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 18,
+    paddingVertical: 16,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
+    borderRadius: 20,
+    borderWidth: 1,
+    // Add subtle shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  rowText: {
+  cardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    flex: 1,
+  },
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardText: {
     ...Typography.BodyLarge,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   addNewBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    borderWidth: 1,
+    paddingVertical: 18,
+    borderWidth: 1.5,
     borderStyle: 'dashed',
+    borderRadius: 20,
+    gap: 12,
+    marginTop: 'auto',
+  },
+  plusIcon: {
+    width: 24,
+    height: 24,
     borderRadius: 12,
-    gap: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   addNewText: {
     ...Typography.BodyLarge,
-    fontWeight: '600',
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
 });

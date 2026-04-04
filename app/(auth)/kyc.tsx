@@ -6,7 +6,7 @@ import { PremiumButton } from '@/components/ui/PremiumButton';
 import { Colors, Typography } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { getRestaurantStatus, submitStep2, updateStep2 } from '@/store/slices/restaurantSlice';
+import { getRestaurantStatus, submitStep2 } from '@/store/slices/restaurantSlice';
 import { updateRestaurantToken } from '@/store/slices/authSlice';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -40,6 +40,7 @@ import Animated, {
   FadeOutLeft,
   Layout
 } from 'react-native-reanimated';
+import { AnimatedPage } from '@/components/ui/AnimatedPage';
 
 const { width } = Dimensions.get('window');
 
@@ -181,26 +182,51 @@ export default function KycScreen() {
         finalPayload.Gstin = form.Gstin;
       }
 
-      console.log(`🚀 [Onboarding Step 2] ${status?.onboardingStep && status.onboardingStep >= 2 ? 'Updating' : 'Submitting'} Payload:`, JSON.stringify(finalPayload, null, 2));
+      Alert.alert(
+        "Submit KYC Details?",
+        "Please review your details carefully. This information cannot be updated after submission.",
+        [
+          { text: "Review Again", style: "cancel" },
+          { 
+            text: "Submit Now", 
+            style: "default",
+            onPress: async () => {
+              console.log('🚀 [KYC] Submitting Payload:', JSON.stringify(finalPayload, null, 2));
 
-      let resultAction: any;
-      // Decide between POST (submit) or PUT (update)
-      // If we already have KYC data (legalName or paymentMethod), use Update (PUT)
-      if (status?.id && (status?.legalName || status?.paymentMethod)) {
-        console.log('🔄 [KYC] Existing record found. Calling Update (PUT)...');
-        resultAction = await dispatch(updateStep2(finalPayload));
-      } else {
-        console.log('🚀 [KYC] No existing record. Calling Submit (POST)...');
-        resultAction = await dispatch(submitStep2(finalPayload));
-      }
+              let resultAction: any;
+              // Step 2 is now a one-time submission. No more updateStep2 (PUT).
+              resultAction = await dispatch(submitStep2(finalPayload));
 
-      if (submitStep2.fulfilled.match(resultAction) || updateStep2.fulfilled.match(resultAction)) {
-        if (status?.id) {
-          console.log(`🚀 [Handshake] Step 2 success. Updating token for Restaurant: ${status.id}`);
-          await dispatch(updateRestaurantToken({ restaurantId: status.id }));
-        }
-        await dispatch(getRestaurantStatus());
-      }
+              const isSuccess = submitStep2.fulfilled.match(resultAction);
+              const isAlreadyExists = submitStep2.rejected.match(resultAction) && 
+                (resultAction.payload as string)?.toLowerCase().includes('already exists');
+
+              if (isSuccess || isAlreadyExists) {
+                Alert.alert(
+                  "KYC Submitted", 
+                  "Your business details have been recorded successfully.",
+                  [{ 
+                    text: "Continue", 
+                    onPress: () => {
+                      console.log('✅ [KYC] Submission finalized. Redirecting to onboarding dashboard...');
+                      router.replace('/(auth)/onboarding');
+                    } 
+                  }]
+                );
+
+                if (status?.id) {
+                  console.log(`🚀 [Handshake] Step 2 success. Updating token for Restaurant: ${status.id}`);
+                  await dispatch(updateRestaurantToken({ restaurantId: status.id }));
+                }
+                await dispatch(getRestaurantStatus());
+              } else {
+                const errorMsg = resultAction.payload as string || 'Failed to submit KYC details';
+                Alert.alert('Submission Error', errorMsg);
+              }
+            } 
+          }
+        ]
+      );
     }
   };
 
@@ -372,7 +398,7 @@ export default function KycScreen() {
   );
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <AnimatedPage style={styles.container}>
       <MeshGradient />
 
       <View style={styles.overlay}>
@@ -414,7 +440,7 @@ export default function KycScreen() {
           </View>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </AnimatedPage>
   );
 }
 

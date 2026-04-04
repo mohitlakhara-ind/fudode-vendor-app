@@ -24,6 +24,7 @@ import {
   CheckCircle as CheckCircleIcon
 } from 'phosphor-react-native';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { AnimatedPage } from '@/components/ui/AnimatedPage';
 import React, { useEffect, useRef, useState } from 'react';
 import { Dimensions, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -323,7 +324,7 @@ export default function LiveOrdersScreen() {
   const isBottomSheetOpen = showNewOrderSheet || showConfirmationSheet;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+    <AnimatedPage style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       {/* DECORATIVE BACKGROUND FOR GLASSY POP */}
       <View style={[styles.bgCircle, { backgroundColor: theme.primary, opacity: isDark ? 0.05 : 0.03, left: -100, top: -100 }]} />
       <View style={[styles.bgCircle, { backgroundColor: theme.secondary, opacity: isDark ? 0.05 : 0.03, right: -150, top: 200 }]} />
@@ -519,7 +520,7 @@ export default function LiveOrdersScreen() {
         }}
         categories={ORDER_FILTER_CATEGORIES}
       />
-    </View>
+    </AnimatedPage>
   );
 }
 
