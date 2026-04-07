@@ -40,7 +40,7 @@ export default function AddonGroupDetailsScreen() {
           isRequired: group.isRequired,
           minSelect: group.minSelect,
           maxSelect: group.maxSelect,
-          addons: group.addons.map(({ id, ...rest }) => rest), // Keep it purely for editing
+          addons: (group.addons || []).map(({ id, ...rest }: any) => rest), // Keep it purely for editing
         });
       }
     }

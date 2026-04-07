@@ -16,6 +16,11 @@ export interface InventoryCategory {
   subtitle: string;
   items: InventoryItem[];
   isActive: boolean;
+  subCategories?: {
+    id: string;
+    name: string;
+    items: InventoryItem[];
+  }[];
 }
 
 export const MOCK_INVENTORY: InventoryCategory[] = [

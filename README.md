@@ -1,50 +1,80 @@
-# Welcome to your Expo app 👋
+# Fudode Vendor - Premium Merchant Platform 🍱
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Welcome to the **Fudode Vendor App**, a powerful, premium application designed for restaurant owners and merchants to manage their operations, orders, and growth within the Fudode ecosystem.
 
-## Get started
+Built with **Expo** and **React Native**, this app provides a seamless, real-time experience across iOS and Android.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## 🚀 Quick Start
 
-2. Start the app
+### 1. Prerequisites
+- **Node.js** (LTS version)
+- **PNPM** (recommended) or NPM
+- **Expo Go** app on your mobile device (for development)
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+### 2. Installation
 ```bash
-npm run reset-project
+# Clone the repository
+git clone [repository-url]
+cd fudode-vendor-app
+
+# Install dependencies
+pnpm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 3. Running the App
+```bash
+# Start the Expo development server
+pnpm run start
 
-## Learn more
+# Run specifically on Android or iOS
+pnpm run android
+pnpm run ios
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+---
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 📚 Documentation Center
 
-## Join the community
+For a deep dive into the application, please refer to the specialized documentation modules below:
 
-Join our community of developers creating universal apps.
+### 🛠️ [Technical Architecture](./ARCHITECTURE.md)
+*Frameworks, State Management (Redux), Networking (Axios/Interceptors), and Design System.*
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### ✨ [Product Features](./FEATURES.md)
+*Orders, Catalog (Menu), Growth (Analytics), Finance, and Settings overview.*
+
+### 🔐 [Authentication Guide](./auth_implementation_guide.md)
+*Deep dive into the secure authentication and token refresh strategy.*
+
+### 📖 [API & Integration Guide](./api-guide.md)
+*Reference for interacting with the Fudode backend services.*
+
+---
+
+## 🛠️ Technology Stack
+
+| Layer | Technology |
+|---|---|
+| **Core Framework** | [Expo SDK 54](https://expo.dev/) |
+| **Language** | [TypeScript](https://www.typescriptlang.org/) |
+| **Navigation** | [Expo Router](https://docs.expo.dev/router/introduction/) |
+| **State Management** | [Redux Toolkit](https://redux-toolkit.js.org/) |
+| **Styling** | Native StyleSheet (Premium Design System) |
+| **Networking** | Axios with Interceptors |
+| **Utility** | Phosphor Icons, Reanimated, Blur |
+
+---
+
+## 🎨 Design Philosophy: "Premium Borderless"
+The Fudode Vendor app follows a strict UX/UI standard:
+- **Obsidian Dark Mode**: High-contrast, sleek surfaces (`#131313`).
+- **Gold Accents**: Premium action cues (`#facb04`).
+- **Interactive Micro-animations**: Using `reanimated` for physical-feeling transitions.
+- **Glassmorphism**: Layered elevation with `expo-blur`.
+
+---
+
+## 📄 License
+This project is private and proprietary. All rights reserved.

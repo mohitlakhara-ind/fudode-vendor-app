@@ -180,6 +180,10 @@ export default function MoreScreen() {
         visible={profileVisible}
         onClose={() => setProfileVisible(false)}
         userData={userData}
+        onLogoutPress={() => {
+          setProfileVisible(false);
+          setLogoutVisible(true);
+        }}
       />
 
       <TimeOffReasonModal

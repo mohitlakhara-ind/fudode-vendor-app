@@ -17,7 +17,10 @@ import { AnimatedPage } from '@/components/ui/AnimatedPage';
 import React, { useState, useMemo, useEffect } from 'react';
 import { ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { fetchCategories, fetchItems, fetchAddonGroups, updateItemStatus, updateAddonOption } from '@/store/slices/menuSlice';
+import { MenuItemStatus } from '@/api/types';
 
 
 export default function StockScreen() {
@@ -25,13 +28,60 @@ export default function StockScreen() {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
   const router = useRouter();
-  const { status: restaurantStatus } = useSelector((state: RootState) => state.restaurant);
+  const dispatch = useAppDispatch();
+  const { categories, items, addonGroups, itemsFetched, categoriesFetched, addonGroupsFetched, loading: menuLoading } = useAppSelector((state: RootState) => state.menu);
+  
+  useEffect(() => {
+    if (!categoriesFetched) dispatch(fetchCategories());
+    if (!itemsFetched) dispatch(fetchItems({}));
+    if (!addonGroupsFetched) dispatch(fetchAddonGroups());
+  }, [dispatch, categoriesFetched, itemsFetched, addonGroupsFetched]);
+
   const [activeTab, setActiveTab] = useState<'items' | 'addons'>('items');
   const [searchQuery, setSearchQuery] = useState('');
   const { queue } = useSelector((state: RootState) => state.order);
 
-  const [inventory, setInventory] = useState<InventoryCategory[]>(MOCK_INVENTORY);
-  const [addons, setAddons] = useState<InventoryCategory[]>(MOCK_ADDONS);
+  // Map Redux items to InventoryCategory format
+  const inventory = useMemo(() => {
+    return categories.map(cat => {
+      const catItems = items.filter(item => item.categoryId === cat.id);
+      return {
+        id: cat.id,
+        name: cat.name,
+        subtitle: cat.parentCategoryId ? 'Sub Category' : 'Main Category',
+        isActive: catItems.some(i => i.status === MenuItemStatus.AVAILABLE),
+        items: catItems.map(i => ({
+          id: i.id,
+          name: i.name,
+          isVeg: i.foodType === 'VEG',
+          isInStock: i.status === MenuItemStatus.AVAILABLE,
+          price: i.variants?.[0]?.price || 0,
+          description: i.description,
+          imageUrl: i.imageUrl,
+          status: i.isLive ? 'live' : 'not-live',
+          categoryName: cat.name,
+        }))
+      };
+    }).filter(cat => cat.items.length > 0);
+  }, [categories, items]);
+
+  // Map Addon Groups to InventoryCategory format
+  const addons = useMemo(() => {
+    return addonGroups.map(group => ({
+      id: group.id,
+      name: group.name,
+      subtitle: `Min ${group.minSelect} & Max ${group.maxSelect}`,
+      isActive: group.addons.some(a => a.status === 'AVAILABLE'),
+      items: group.addons.map(a => ({
+        id: a.id,
+        name: a.name,
+        isVeg: true, // Addons are typically veg or neutral in this UI
+        isInStock: a.status === 'AVAILABLE',
+        price: a.price,
+        categoryName: group.name,
+      }))
+    }));
+  }, [addonGroups]);
 
   // Bottom Sheet States
   const [showStockSheet, setShowStockSheet] = useState(false);
@@ -68,14 +118,17 @@ export default function StockScreen() {
     }
 
     // Turning ON
-    const updateFn = activeTab === 'items' ? setInventory : setAddons;
-    updateFn(prev => prev.map(cat =>
-      cat.id === catId ? {
-        ...cat,
-        isActive: true,
-        items: cat.items.map(i => ({ ...i, isInStock: true }))
-      } : cat
-    ));
+    if (activeTab === 'items') {
+      const catItems = items.filter(i => i.categoryId === catId);
+      catItems.forEach(item => {
+        dispatch(updateItemStatus({ id: item.id, status: MenuItemStatus.AVAILABLE }));
+      });
+    } else {
+      const group = addonGroups.find(g => g.id === catId);
+      group?.addons.forEach(addon => {
+        dispatch(updateAddonOption({ optionId: addon.id, details: { status: 'AVAILABLE' } }));
+      });
+    }
   };
 
   const handleToggleItem = (catId: string, itemId: string) => {
@@ -83,24 +136,19 @@ export default function StockScreen() {
     const item = category?.items.find(i => i.id === itemId);
 
     if (item?.isInStock) {
+      // In stock items need to be marked out of stock via the sheet
       setActiveItem({ ...item, catId });
       setSheetType('item');
       setShowStockSheet(true);
       return;
     }
 
-    // Turning ON
-    const updateFn = activeTab === 'items' ? setInventory : setAddons;
-    updateFn(prev => prev.map(cat => {
-      if (cat.id !== catId) return cat;
-      return {
-        ...cat,
-        isActive: true, // Turn category ON if any item is turned ON
-        items: cat.items.map(i =>
-          i.id === itemId ? { ...i, isInStock: true } : i
-        )
-      };
-    }));
+    // Turning ON - direct dispatch
+    if (activeTab === 'items') {
+      dispatch(updateItemStatus({ id: itemId, status: MenuItemStatus.AVAILABLE }));
+    } else {
+      dispatch(updateAddonOption({ optionId: itemId, details: { status: 'AVAILABLE' } }));
+    }
   };
 
   const handlePressItem = (catId: string, itemId: string) => {
@@ -191,34 +239,24 @@ export default function StockScreen() {
         itemSubtitle={sheetType === 'item' ? activeItem?.categoryName : undefined}
         onClose={() => setShowStockSheet(false)}
         onConfirm={(data) => {
-          console.log('Marking out of stock:', data);
           if (sheetType === 'item') {
-            const updateFn = activeTab === 'items' ? setInventory : setAddons;
-            updateFn(prev => prev.map(cat => {
-              if (cat.id !== activeItem.catId) return cat;
-
-              const updatedItems = cat.items.map(i =>
-                i.id === activeItem.id ? { ...i, isInStock: false } : i
-              );
-
-              // If all items are now out of stock, turn OFF the category
-              const allOutOfStock = updatedItems.every(i => !i.isInStock);
-
-              return {
-                ...cat,
-                isActive: allOutOfStock ? false : cat.isActive,
-                items: updatedItems
-              };
-            }));
+            if (activeTab === 'items') {
+              dispatch(updateItemStatus({ id: activeItem.id, status: MenuItemStatus.SOLD_OUT }));
+            } else {
+              dispatch(updateAddonOption({ optionId: activeItem.id, details: { status: 'SOLD_OUT' } }));
+            }
           } else {
-            const updateFn = activeTab === 'items' ? setInventory : setAddons;
-            updateFn(prev => prev.map(cat =>
-              cat.id === activeCategory.id ? {
-                ...cat,
-                isActive: false,
-                items: cat.items.map(i => ({ ...i, isInStock: false })) // Turn OFF all items
-              } : cat
-            ));
+            // Bulk marking out of stock for category/group
+            if (activeTab === 'items') {
+              const catItems = items.filter(i => i.categoryId === activeCategory.id);
+              catItems.forEach(item => {
+                dispatch(updateItemStatus({ id: item.id, status: MenuItemStatus.SOLD_OUT }));
+              });
+            } else {
+              activeCategory.items.forEach((item: any) => {
+                dispatch(updateAddonOption({ optionId: item.id, details: { status: 'SOLD_OUT' } }));
+              });
+            }
           }
           setShowStockSheet(false);
         }}

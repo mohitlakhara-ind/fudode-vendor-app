@@ -202,13 +202,11 @@ export default function OwnerIdentityScreen() {
         <ScrollView 
           contentContainerStyle={styles.scrollContent} 
           showsVerticalScrollIndicator={false}
-          renderToHardwareTextureAndroid={true}
           collapsable={false}
         >
           
           <View style={styles.avatarSection}>
             <View 
-              renderToHardwareTextureAndroid={true}
               collapsable={false}
               style={[styles.avatarWrapper, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary }]}
             >
@@ -269,7 +267,6 @@ export default function OwnerIdentityScreen() {
           <View style={styles.docGrid}>
             <View 
               style={[styles.docPicker, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary }]}
-              renderToHardwareTextureAndroid={true}
               collapsable={false}
             >
               <TouchableOpacity 
@@ -296,7 +293,6 @@ export default function OwnerIdentityScreen() {
 
             <View 
               style={[styles.docPicker, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary }]}
-              renderToHardwareTextureAndroid={true}
               collapsable={false}
             >
               <TouchableOpacity 

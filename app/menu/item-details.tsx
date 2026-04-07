@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, SafeAreaView, TextInput, Switch, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, SafeAreaView, TextInput, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,7 +10,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { Colors, Typography } from '@/constants/theme';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { RootState } from '@/store/store';
-import { createItem, updateItem, deleteItem } from '@/store/slices/menuSlice';
+import { createItem, updateItem, deleteItem, fetchAddonGroups } from '@/store/slices/menuSlice';
 import { ItemCreateRequest, MenuVariant } from '@/api/types';
 
 export default function ItemDetailsScreen() {
@@ -28,7 +28,13 @@ export default function ItemDetailsScreen() {
   const theme = Colors[colorScheme];
   const insets = useSafeAreaInsets();
   
-  const { items, addonGroups, loading } = useAppSelector((state: RootState) => state.menu);
+  const { items, addonGroups, loading, addonGroupsFetched } = useAppSelector((state: RootState) => state.menu);
+  
+  useEffect(() => {
+    if (!addonGroupsFetched) {
+      dispatch(fetchAddonGroups());
+    }
+  }, [dispatch, addonGroupsFetched]);
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -39,13 +45,19 @@ export default function ItemDetailsScreen() {
     image: null as string | null,
     variants: [] as MenuVariant[],
     addonGroupIds: [] as string[],
-    isLive: false,
-    status: 'AVAILABLE' as 'AVAILABLE' | 'SOLD_OUT' | 'HIDDEN',
+    nutrients: {
+      serving: { value: '', unit: 'g' },
+      calories: { value: '', unit: 'kcal' },
+      protein: { value: '', unit: 'g' },
+      carbs: { value: '', unit: 'g' },
+      fat: { value: '', unit: 'g' },
+      fibre: { value: '', unit: 'g' },
+    },
   });
 
   useEffect(() => {
     if (params.itemId) {
-      const item = items.find(i => i.id === params.itemId);
+      const item = (items || []).find(i => i && i.id === params.itemId);
       if (item) {
         setForm({
           name: item.name,
@@ -57,14 +69,48 @@ export default function ItemDetailsScreen() {
           image: item.imageUrl || null,
           variants: item.variants || [],
           addonGroupIds: item.addonGroupIds || [],
-          isLive: item.isLive,
-          status: item.status,
+          nutrients: {
+            serving: { 
+              value: (item.nutrients?.serving as any)?.value?.toString() || '', 
+              unit: (item.nutrients?.serving as any)?.unit || 'g' 
+            },
+            calories: { 
+              value: (item.nutrients?.calories as any)?.value?.toString() || '', 
+              unit: (item.nutrients?.calories as any)?.unit || 'kcal' 
+            },
+            protein: { 
+              value: (item.nutrients?.protein as any)?.value?.toString() || '', 
+              unit: (item.nutrients?.protein as any)?.unit || 'g' 
+            },
+            carbs: { 
+              value: (item.nutrients?.carbs as any)?.value?.toString() || '', 
+              unit: (item.nutrients?.carbs as any)?.unit || 'g' 
+            },
+            fat: { 
+              value: (item.nutrients?.fat as any)?.value?.toString() || '', 
+              unit: (item.nutrients?.fat as any)?.unit || 'g' 
+            },
+            fibre: { 
+              value: (item.nutrients?.fibre as any)?.value?.toString() || '', 
+              unit: (item.nutrients?.fibre as any)?.unit || 'g' 
+            },
+          },
         });
       }
     }
   }, [params.itemId, items]);
 
-  const availableTags = ['Spicy', 'Vegan', 'Bestseller', 'Gluten Free'];
+  const availableTags = ['BESTSELLER', 'SPICY', 'NEW', 'CHEF_SPECIAL'];
+
+  const formatTagName = (tag: string) => {
+    switch (tag) {
+      case 'BESTSELLER': return 'Bestseller';
+      case 'SPICY': return 'Spicy';
+      case 'NEW': return 'New Arrival';
+      case 'CHEF_SPECIAL': return 'Chef\'s Special';
+      default: return tag;
+    }
+  };
 
   const toggleTag = (tag: string) => {
     setForm(prev => {
@@ -99,27 +145,71 @@ export default function ItemDetailsScreen() {
       return;
     }
 
-    const itemData: ItemCreateRequest = {
-      categoryId: params.subCategoryId || params.categoryId,
-      name: form.name,
-      description: form.description,
+    if (!form.description || form.description.length < 5) {
+      Alert.alert('Error', 'Description must be at least 5 characters long');
+      return;
+    }
+
+    const itemData: any = {
+      description: form.description || '',
       foodType: form.foodType,
       prepTime: parseInt(form.prepTime) || 15,
-      imageUrl: form.image || undefined,
-      variants: form.variants.length > 0 ? form.variants : [
+      imageUrl: form.image || '',
+      variants: (form.variants.length > 0 ? form.variants : [
         { name: 'Regular', price: parseFloat(form.basePrice), isDefault: true }
-      ],
-      tags: form.tags,
-      addonGroupIds: form.addonGroupIds,
+      ]).map((v: any) => ({
+        name: v.name,
+        price: v.price,
+        isDefault: v.isDefault
+      })),
+      tags: form.tags || [],
+      addonGroupIds: form.addonGroupIds || [],
+      nutrients: {
+        serving: form.nutrients.serving.value ? { 
+          value: parseFloat(form.nutrients.serving.value), 
+          unit: form.nutrients.serving.unit 
+        } : undefined,
+        calories: form.nutrients.calories.value ? { 
+          value: parseFloat(form.nutrients.calories.value), 
+          unit: form.nutrients.calories.unit 
+        } : undefined,
+        protein: form.nutrients.protein.value ? { 
+          value: parseFloat(form.nutrients.protein.value), 
+          unit: form.nutrients.protein.unit 
+        } : undefined,
+        carbs: form.nutrients.carbs.value ? { 
+          value: parseFloat(form.nutrients.carbs.value), 
+          unit: form.nutrients.carbs.unit 
+        } : undefined,
+        fat: form.nutrients.fat.value ? { 
+          value: parseFloat(form.nutrients.fat.value), 
+          unit: form.nutrients.fat.unit 
+        } : undefined,
+        fibre: form.nutrients.fibre.value ? { 
+          value: parseFloat(form.nutrients.fibre.value), 
+          unit: form.nutrients.fibre.unit 
+        } : undefined,
+      },
     };
+
+    // Add immutable fields ONLY for creation
+    if (!params.itemId) {
+      itemData.name = form.name.trim();
+      itemData.categoryId = params.subCategoryId || params.categoryId;
+    }
+
+    console.log('Sending Item Data:', JSON.stringify(itemData, null, 2));
 
     try {
       if (params.itemId) {
         await dispatch(updateItem({ id: params.itemId, details: itemData })).unwrap();
+        Alert.alert('Success', 'Update submitted! Admin will verify changes shortly.', [
+          { text: 'OK', onPress: () => router.dismiss(3) }
+        ]);
       } else {
         await dispatch(createItem(itemData)).unwrap();
+        router.dismiss(3); 
       }
-      router.dismiss(3); // Go back through the selection flow
     } catch (err: any) {
       Alert.alert('Error', err || 'Failed to save item');
     }
@@ -155,27 +245,50 @@ export default function ItemDetailsScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <CaretLeft size={24} color={theme.text} />
         </Pressable>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <ThemedText style={[styles.headerTitle, { color: theme.text }]}>{params.itemId ? 'Edit Item' : 'Add New Item'}</ThemedText>
-          {form.isLive && (
-            <View style={[styles.liveBadge, { backgroundColor: theme.success + '20' }]}>
-              <ThemedText style={[styles.liveBadgeText, { color: theme.success }]}>LIVE</ThemedText>
-            </View>
-          )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'center', marginLeft: params.itemId ? 40 : 0 }}>
+          <ThemedText style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
+            {params.itemId ? 'Edit Item' : 'Add New Item'}
+          </ThemedText>
         </View>
-        <Pressable onPress={handleSave} style={styles.saveBtn} disabled={loading}>
-          {loading ? (
-            <ActivityIndicator size="small" color={theme.primary} />
-          ) : (
-            <ThemedText style={[styles.saveText, { color: theme.primary }]}>Save</ThemedText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+          {params.itemId && (
+            <Pressable onPress={handleDelete} hitSlop={10}>
+              <Trash size={22} color={theme.error} />
+            </Pressable>
           )}
-        </Pressable>
+          <Pressable onPress={handleSave} style={styles.saveBtn} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator size="small" color={theme.primary} />
+            ) : (
+              <ThemedText style={[styles.saveText, { color: theme.primary }]}>Save</ThemedText>
+            )}
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}>
+        {params.itemId && (
+          <View style={[styles.verificationNotice, { backgroundColor: theme.primary + '10', borderColor: theme.primary + '30' }]}>
+            <Clock size={18} color={theme.primary} weight="fill" />
+            <ThemedText style={[styles.verificationText, { color: theme.primary }]}>
+              Updates require admin verification. Changes will go live after approval.
+            </ThemedText>
+          </View>
+        )}
         <View style={styles.categoryBreadcrumbs}>
           <ThemedText style={[styles.breadcrumbText, { color: theme.textSecondary }]}>
-            {params.categoryName} <ThemedText style={{ color: theme.textSecondary, fontSize: 12 }}>{'>'}</ThemedText> {params.subCategoryName}
+            {params.categoryName} 
+            {params.subCategoryName ? (
+              <>
+                {' '}<ThemedText style={{ color: theme.textSecondary, fontSize: 12 }}>{'>'}</ThemedText>{' '}
+                {params.subCategoryName}
+              </>
+            ) : (
+              <>
+                {' '}<ThemedText style={{ color: theme.textSecondary, fontSize: 12 }}>{'>'}</ThemedText>{' '}
+                <ThemedText style={{ fontStyle: 'italic', opacity: 0.6 }}>No Sub Category</ThemedText>
+              </>
+            )}
           </ThemedText>
         </View>
 
@@ -223,18 +336,19 @@ export default function ItemDetailsScreen() {
         <View style={styles.section}>
           <ThemedText style={[styles.sectionTitle, { color: theme.text }]}>Basic Info</ThemedText>
           
-          <View style={[styles.inputContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={[styles.inputContainer, { backgroundColor: params.itemId ? theme.surfaceSecondary : theme.surface, borderColor: theme.border }]}>
             <TextInput
-              style={[styles.input, { color: theme.text }]}
+              style={[styles.input, { color: params.itemId ? theme.textSecondary : theme.text }]}
               placeholder="Item Name"
               placeholderTextColor={theme.textSecondary}
               value={form.name}
               onChangeText={(val) => setForm({...form, name: val})}
+              editable={!params.itemId}
             />
           </View>
-          {form.isLive && (
+          {params.itemId && (
             <ThemedText style={[styles.draftNote, { color: theme.textSecondary }]}>
-              * Changing the name of a live item requires admin approval.
+              * Item name cannot be changed once created. Contact support for major updates.
             </ThemedText>
           )}
 
@@ -275,12 +389,6 @@ export default function ItemDetailsScreen() {
               );
             })}
           </View>
-          {form.isLive && (
-            <ThemedText style={[styles.draftNote, { color: theme.textSecondary, marginBottom: 12 }]}>
-              * Changing food type requires admin approval.
-            </ThemedText>
-          )}
-          
           <View style={[styles.inputGroup, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.rowInput}>
               <Clock size={20} color={theme.textSecondary} />
@@ -295,6 +403,8 @@ export default function ItemDetailsScreen() {
             </View>
           </View>
         </View>
+
+
 
         <View style={styles.section}>
           <ThemedText style={[styles.sectionTitle, { color: theme.text }]}>Pricing & Tax</ThemedText>
@@ -341,12 +451,112 @@ export default function ItemDetailsScreen() {
                   onPress={() => toggleTag(tag)}
                 >
                   <ThemedText style={{ color: isSelected ? theme.primary : theme.text, fontWeight: isSelected ? '700' : '500' }}>
-                    {tag}
+                    {formatTagName(tag)}
                   </ThemedText>
                 </Pressable>
               );
             })}
           </ScrollView>
+        </View>
+
+        <View style={styles.section}>
+          <ThemedText style={[styles.sectionTitle, { color: theme.text }]}>Nutritional Info (per serving)</ThemedText>
+          <View style={[styles.inputGroup, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={styles.nutrientRow}>
+              <View style={styles.nutrientInput}>
+                <ThemedText style={[styles.nutrientLabel, { color: theme.textSecondary }]}>Calories (kcal)</ThemedText>
+                <TextInput
+                  style={[styles.input, { color: theme.text, paddingHorizontal: 0 }]}
+                  placeholder="0"
+                  placeholderTextColor={theme.textSecondary}
+                  value={form.nutrients.calories.value}
+                  onChangeText={(val: string) => setForm({
+                    ...form,
+                    nutrients: { ...form.nutrients, calories: { ...form.nutrients.calories, value: val } }
+                  })}
+                  keyboardType="numeric"
+                />
+              </View>
+              <View style={[styles.vertDivider, { backgroundColor: theme.border }]} />
+              <View style={styles.nutrientInput}>
+                <ThemedText style={[styles.nutrientLabel, { color: theme.textSecondary }]}>Protein (g)</ThemedText>
+                <TextInput
+                  style={[styles.input, { color: theme.text, paddingHorizontal: 0 }]}
+                  placeholder="0"
+                  placeholderTextColor={theme.textSecondary}
+                  value={form.nutrients.protein.value}
+                  onChangeText={(val: string) => setForm({
+                    ...form,
+                    nutrients: { ...form.nutrients, protein: { ...form.nutrients.protein, value: val } }
+                  })}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <View style={styles.nutrientRow}>
+              <View style={styles.nutrientInput}>
+                <ThemedText style={[styles.nutrientLabel, { color: theme.textSecondary }]}>Fat (g)</ThemedText>
+                <TextInput
+                  style={[styles.input, { color: theme.text, paddingHorizontal: 0 }]}
+                  placeholder="0"
+                  placeholderTextColor={theme.textSecondary}
+                  value={form.nutrients.fat.value}
+                  onChangeText={(val: string) => setForm({
+                    ...form,
+                    nutrients: { ...form.nutrients, fat: { ...form.nutrients.fat, value: val } }
+                  })}
+                  keyboardType="numeric"
+                />
+              </View>
+              <View style={[styles.vertDivider, { backgroundColor: theme.border }]} />
+              <View style={styles.nutrientInput}>
+                <ThemedText style={[styles.nutrientLabel, { color: theme.textSecondary }]}>Carbs (g)</ThemedText>
+                <TextInput
+                  style={[styles.input, { color: theme.text, paddingHorizontal: 0 }]}
+                  placeholder="0"
+                  placeholderTextColor={theme.textSecondary}
+                  value={form.nutrients.carbs.value}
+                  onChangeText={(val: string) => setForm({
+                    ...form,
+                    nutrients: { ...form.nutrients, carbs: { ...form.nutrients.carbs, value: val } }
+                  })}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <View style={styles.nutrientRow}>
+              <View style={styles.nutrientInput}>
+                <ThemedText style={[styles.nutrientLabel, { color: theme.textSecondary }]}>Fiber (g)</ThemedText>
+                <TextInput
+                  style={[styles.input, { color: theme.text, paddingHorizontal: 0 }]}
+                  placeholder="0"
+                  placeholderTextColor={theme.textSecondary}
+                  value={form.nutrients.fibre.value}
+                  onChangeText={(val: string) => setForm({
+                    ...form,
+                    nutrients: { ...form.nutrients, fibre: { ...form.nutrients.fibre, value: val } }
+                  })}
+                  keyboardType="numeric"
+                />
+              </View>
+              <View style={[styles.vertDivider, { backgroundColor: theme.border }]} />
+              <View style={styles.nutrientInput}>
+                <ThemedText style={[styles.nutrientLabel, { color: theme.textSecondary }]}>Serv. Size</ThemedText>
+                <TextInput
+                  style={[styles.input, { color: theme.text, paddingHorizontal: 0 }]}
+                  placeholder="e.g. 250g"
+                  placeholderTextColor={theme.textSecondary}
+                  value={form.nutrients.serving.value}
+                  onChangeText={(val: string) => setForm({
+                    ...form,
+                    nutrients: { ...form.nutrients, serving: { ...form.nutrients.serving, value: val } }
+                  })}
+                />
+              </View>
+            </View>
+          </View>
         </View>
         <View style={styles.section}>
           <ThemedText style={[styles.sectionTitle, { color: theme.text }]}>Add-on Groups</ThemedText>
@@ -403,7 +613,7 @@ export default function ItemDetailsScreen() {
 
       </ScrollView>
 
-      <View style={[styles.bottomBar, { backgroundColor: theme.surface, borderTopColor: theme.border, paddingBottom: insets.bottom + 10 }]}>
+      <View style={[styles.bottomBar, { backgroundColor: theme.surface, borderTopColor: theme.border, paddingBottom: insets.bottom + 24 }]}>
         <Pressable 
           style={[styles.createBtn, { backgroundColor: theme.primary, opacity: loading ? 0.7 : 1 }]} 
           onPress={handleSave}
@@ -631,5 +841,53 @@ const styles = StyleSheet.create({
     marginTop: -8,
     marginBottom: 16,
     paddingHorizontal: 4,
+  },
+  statusContainer: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  statusLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  nutrientRow: {
+    flexDirection: 'row',
+    height: 70,
+  },
+  nutrientInput: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    justifyContent: 'center',
+  },
+  nutrientLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  verificationNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 20,
+    gap: 12,
+  },
+  verificationText: {
+    ...Typography.Caption,
+    flex: 1,
+    fontWeight: '600',
+    lineHeight: 18,
   },
 });

@@ -1,5 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
-import { Stack, useSegments, useRouter } from 'expo-router';
+import { Stack, useSegments, useRouter, useRootNavigationState } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 import React, { useEffect, useState } from 'react';
@@ -44,6 +44,8 @@ function AppNavigator() {
   const { colorScheme } = useAppTheme();
   const segments = useSegments() as string[];
   const router = useRouter();
+  const rootNavigationState = useRootNavigationState();
+  const isNavigationReady = !!rootNavigationState?.key;
   const { isAuthenticated, loading, kycStatus } = useSelector((state: RootState) => state.auth);
   const [isReady, setIsReady] = useState(false);
 
@@ -79,7 +81,7 @@ function AppNavigator() {
   }, [isAuthenticated, dispatch]);
 
   useEffect(() => {
-    const isAppInitializing = !isReady || loading || (isAuthenticated && !restaurantStatus && restaurantLoading);
+    const isAppInitializing = !isReady || loading || !isNavigationReady || (isAuthenticated && !restaurantStatus && restaurantLoading);
 
     if (isAppInitializing) {
       console.log('[AppNavigator] Initializing/Fetching state. Waiting to mount navigator...');
@@ -102,7 +104,9 @@ function AppNavigator() {
     if (!isAuthenticated) {
       if (!currentPath.includes('login') && !currentPath.includes('verify')) {
         console.log('[AppNavigator] Redirecting to login');
-        router.replace('/login');
+        requestAnimationFrame(() => {
+          router.replace('/(auth)/login');
+        });
       }
     } else {
       // 2. Decide based on status
@@ -117,7 +121,9 @@ function AppNavigator() {
             console.log('[AppNavigator] No restaurant status found, defaulting to owner-profile');
             // Simplified check: since we are authenticated, we should arrive at owner-profile if no restaurant exists
             if (!segments.includes('owner-profile') && !segments.includes('verify')) {
-              router.replace('/owner-profile');
+              requestAnimationFrame(() => {
+                router.replace('/(auth)/owner-profile');
+              });
             }
         }
         return;
@@ -138,7 +144,9 @@ function AppNavigator() {
       if (!isOwnerComplete) {
         if (!segments.includes('owner-profile') && !segments.includes('verify')) {
           console.log('[AppNavigator] Owner profile incomplete, forcing Phase 2 Identity Verification');
-          router.replace('/owner-profile');
+          requestAnimationFrame(() => {
+            router.replace('/(auth)/owner-profile');
+          });
           return;
         }
       } 
@@ -147,24 +155,30 @@ function AppNavigator() {
         // Only redirect to onboarding if we are not already in its sub-screens
         if (!inOnboardingGroup && !segments.includes('onboarding')) {
           console.log('[AppNavigator] Phase 2 complete, transitioning to Phase 3 Onboarding');
-          router.replace('/onboarding');
+          requestAnimationFrame(() => {
+            router.replace('/(auth)/onboarding');
+          });
           return;
         }
       } 
       // VERIFIED: Move to Tabs
-      else if (currentPath === '' || (segments as any).includes('(auth)')) {
-        console.log('[AppNavigator] Fully verified, redirecting to dashboard');
-        // Check if we already have a redirect pending to avoid double-replace
-        router.replace('/(tabs)');
+      else if (currentPath === '' || (segments as any).includes('(auth)') || currentPath === '/') {
+        // Only redirect if we ARE NOT already in the tabs group
+        if (!segments.includes('(tabs)')) {
+          console.log('[AppNavigator] Fully verified, redirecting to tabs');
+          requestAnimationFrame(() => {
+            router.replace('/(tabs)');
+          });
+        }
         return;
       }
     }
     
     // Hide splash screen only when we are sure where the user belongs
-    if (isReady && !loading && (!isAuthenticated || restaurantStatus || !restaurantLoading)) {
+    if (isReady && !loading && isNavigationReady && (!isAuthenticated || restaurantStatus || !restaurantLoading)) {
       SplashScreen.hideAsync();
     }
-  }, [isAuthenticated, restaurantStatus, segments, loading, isReady, router, restaurantLoading]);
+  }, [isAuthenticated, restaurantStatus, segments, loading, isReady, router, restaurantLoading, isNavigationReady, restaurantError]);
 
   const customDarkTheme = {
     ...DarkTheme,
@@ -198,7 +212,7 @@ function AppNavigator() {
   // 1. Core JS/Fonts are ready
   // 2. Auth state is determined
   // 3. If authenticated, restaurant status is determined
-  const isAppInitializing = !isReady || loading || (isAuthenticated && !restaurantStatus && restaurantLoading);
+  const isAppInitializing = !isReady || loading || !isNavigationReady || (isAuthenticated && !restaurantStatus && restaurantLoading);
 
   if (isAppInitializing) {
     return <Loading />;

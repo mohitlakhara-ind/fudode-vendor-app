@@ -29,6 +29,8 @@ export const MenuCategory = ({ category, onToggleCategory, onToggleItemStock, on
     setIsExpanded(!isExpanded);
   };
 
+  const hasContent = (category.items || []).length > 0 || (category.subCategories || []).length > 0;
+
   return (
     <View style={[styles.categoryContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <Pressable onPress={toggleExpand} style={styles.categoryHeader}>
@@ -40,7 +42,9 @@ export const MenuCategory = ({ category, onToggleCategory, onToggleItemStock, on
             {category.name}
           </ThemedText>
           <View style={[styles.countBadge, { backgroundColor: theme.surfaceSecondary }]}>
-            <ThemedText style={[styles.countText, { color: theme.textSecondary }]}>{category.items.length}</ThemedText>
+            <ThemedText style={[styles.countText, { color: theme.textSecondary }]}>
+              {((category.items || []).length + (category.subCategories || []).reduce((acc, sc) => acc + (sc.items || []).length, 0))}
+            </ThemedText>
           </View>
         </View>
         <View style={styles.headerActions}>
@@ -59,23 +63,50 @@ export const MenuCategory = ({ category, onToggleCategory, onToggleItemStock, on
         </View>
       </Pressable>
 
-      {isExpanded && (
+      {isExpanded && hasContent && (
         <View style={styles.subcategoryWrapper}>
-          <View style={[styles.subcategoryHeader, { borderBottomColor: theme.border }]}>
-            <ThemedText style={[styles.subcategoryTitle, { color: theme.textSecondary }]}>
-              {category.name.toUpperCase()} • {category.items.length} ITEMS
-            </ThemedText>
-          </View>
-          <View style={styles.itemsList}>
-            {category.items.map(item => (
-              <MenuItemCard 
-                key={item.id} 
-                item={item} 
-                onToggleStock={(id, inStock) => onToggleItemStock?.(category.id, id, inStock)}
-                onEdit={(item) => onEditItem?.(item, category)}
-              />
-            ))}
-          </View>
+          {/* Direct Items under Root Category */}
+          {(category.items || []).length > 0 && (
+            <View style={styles.itemsList}>
+              {category.items.map(item => (
+                <MenuItemCard 
+                  key={item.id} 
+                  item={item} 
+                  onToggleStock={(id, inStock) => onToggleItemStock?.(category.id, id, inStock)}
+                  onEdit={(item) => onEditItem?.(item, category)}
+                />
+              ))}
+            </View>
+          )}
+
+          {/* Subcategories */}
+          {(category.subCategories || []).map(subCat => (
+            <View key={subCat.id} style={styles.subCategorySection}>
+              <View style={[styles.subcategoryHeader, { borderBottomColor: theme.border + '40' }]}>
+                <ThemedText style={[styles.subcategoryTitle, { color: theme.textSecondary }]}>
+                  {subCat.name.toUpperCase()} • {(subCat.items || []).length} ITEMS
+                </ThemedText>
+              </View>
+              <View style={styles.itemsList}>
+                {subCat.items.map(item => (
+                  <MenuItemCard 
+                    key={item.id} 
+                    item={item} 
+                    onToggleStock={(id, inStock) => onToggleItemStock?.(subCat.id, id, inStock)}
+                    onEdit={(item) => onEditItem?.(item, category)} // Still root category for context
+                  />
+                ))}
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+      
+      {isExpanded && !hasContent && (
+        <View style={{ padding: 24, alignItems: 'center' }}>
+          <ThemedText style={{ color: theme.textSecondary, fontSize: 13, textAlign: 'center' }}>
+            No items in this category yet.
+          </ThemedText>
         </View>
       )}
     </View>
@@ -135,7 +166,10 @@ const styles = StyleSheet.create({
   subcategoryHeader: {
     paddingVertical: 14,
     borderBottomWidth: 1,
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  subCategorySection: {
+    marginTop: 24,
   },
   subcategoryTitle: {
     fontSize: 11,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CaretLeft, CaretRight, Plus } from 'phosphor-react-native';
@@ -21,19 +21,19 @@ export default function ChooseSubCategoryScreen() {
   const theme = Colors[colorScheme];
   const insets = useSafeAreaInsets();
   
-  const { categories, loading } = useAppSelector((state: RootState) => state.menu);
+  const { categories, loading, categoriesFetched } = useAppSelector((state: RootState) => state.menu);
 
   // Filter for sub-categories of the selected category
-  const subCategories = categories.filter(cat => cat.parentCategoryId === params.categoryId);
+  const subCategories = (categories || []).filter(cat => cat && cat.parentCategoryId === params.categoryId);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
-    if (categories.length === 0) {
+    if (!categoriesFetched) {
       dispatch(fetchCategories());
     }
-  }, [dispatch, categories.length]);
+  }, [dispatch, categoriesFetched]);
 
   const handleCreateSubCategory = (name: string) => {
     setIsCreating(true);
@@ -41,6 +41,9 @@ export default function ChooseSubCategoryScreen() {
       .unwrap()
       .then(() => {
         setShowCreateModal(false);
+      })
+      .catch((err: any) => {
+        Alert.alert('Error', err || 'Failed to create sub-category');
       })
       .finally(() => {
         setIsCreating(false);
@@ -56,8 +59,23 @@ export default function ChooseSubCategoryScreen() {
         >
           <CaretLeft size={24} color={theme.text} />
         </Pressable>
-        <ThemedText style={[styles.headerTitle, { color: theme.text }]}>Select Sub Category</ThemedText>
-        <View style={{ width: 40 }} />
+        <ThemedText style={[styles.headerTitle, { color: theme.text }]}>Sub Category</ThemedText>
+        {subCategories.length === 0 ? (
+          <Pressable 
+            onPress={() => router.push({ 
+              pathname: '/menu/item-details', 
+              params: { 
+                categoryId: params.categoryId, 
+                categoryName: params.categoryName 
+              } 
+            })}
+            style={({ pressed }) => [styles.skipBtn, pressed && { opacity: 0.7 }]}
+          >
+            <ThemedText style={[styles.skipText, { color: theme.primary }]}>Skip</ThemedText>
+          </Pressable>
+        ) : (
+          <View style={{ width: 40 }} /> // Spacer to keep title centered
+        )}
       </View>
 
       <ScrollView 
@@ -102,12 +120,31 @@ export default function ChooseSubCategoryScreen() {
               </Pressable>
             ))
           ) : (
-            <EmptyState
-              icon={Plus}
-              title="No Sub-Categories"
-              description="Add sub-categories like 'North Indian' or 'Desserts' to organize your menu."
-              style={{ marginVertical: 40 }}
-            />
+            <View style={{ alignItems: 'center', marginVertical: 40, gap: 20 }}>
+              <EmptyState
+                icon={Plus}
+                title="No Sub-Categories"
+                description="Add sub-categories like 'North Indian' to organize your items, or add directly to the main category."
+                style={{ marginBottom: 0 }}
+              />
+              <Pressable
+                onPress={() => router.push({ 
+                  pathname: '/menu/item-details', 
+                  params: { 
+                    categoryId: params.categoryId, 
+                    categoryName: params.categoryName 
+                  } 
+                })}
+                style={({ pressed }) => [
+                  styles.directAddBtn,
+                  { borderColor: theme.primary, backgroundColor: theme.primary + '10' },
+                  pressed && { opacity: 0.7 }
+                ]}
+              >
+                <Plus size={20} color={theme.primary} weight="bold" />
+                <ThemedText style={[styles.directAddText, { color: theme.primary }]}>Add Item Directly</ThemedText>
+              </Pressable>
+            </View>
           )}
         </View>
 
@@ -121,7 +158,7 @@ export default function ChooseSubCategoryScreen() {
           <View style={[styles.plusIcon, { backgroundColor: theme.primary }]}>
             <Plus size={18} color="#FFF" weight="bold" />
           </View>
-          <ThemedText style={[styles.addNewText, { color: theme.primary }]}>Create New Sub-Category</ThemedText>
+          <ThemedText style={[styles.addNewText, { color: theme.primary }]}>Create Sub-Category First</ThemedText>
         </Pressable>
 
         <InputDialog
@@ -215,6 +252,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 12,
     marginTop: 'auto',
+    marginBottom: 32,
   },
   plusIcon: {
     width: 24,
@@ -227,5 +265,27 @@ const styles = StyleSheet.create({
     ...Typography.BodyLarge,
     fontWeight: '800',
     letterSpacing: 0.3,
+  },
+  skipBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  skipText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  directAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    borderWidth: 1.5,
+  },
+  directAddText: {
+    fontSize: 16,
+    fontWeight: '800',
   },
 });

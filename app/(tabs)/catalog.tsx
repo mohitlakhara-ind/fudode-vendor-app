@@ -5,7 +5,7 @@ import { TabSwitcher } from '@/components/ui/TabSwitcher';
 import { Colors } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { createCategory, deleteCategory, fetchAddonGroups, fetchCategories, fetchItems, updateItemStatus } from '@/store/slices/menuSlice';
+import { createCategory, deleteCategory, fetchAddonGroups, fetchCategories, fetchItems, updateItemStatus, updateCategory } from '@/store/slices/menuSlice';
 import { RootState } from '@/store/store';
 import { MenuItemStatus } from '@/api/types';
 import { useRouter } from 'expo-router';
@@ -48,7 +48,7 @@ export default function CatalogScreen() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { categories, items, addonGroups, loading } = useAppSelector((state: RootState) => state.menu);
+  const { categories, items, addonGroups, loading, categoriesFetched, itemsFetched, addonGroupsFetched } = useAppSelector((state: RootState) => state.menu);
   const { status: restaurantStatus } = useAppSelector((state: RootState) => state.restaurant);
   const { queue } = useAppSelector((state: RootState) => state.order);
 
@@ -56,43 +56,82 @@ export default function CatalogScreen() {
 
   // Initial Data Fetch
   useEffect(() => {
-    dispatch(fetchCategories());
-    if (activeTab === 'Add-ons') {
+    if (!categoriesFetched) {
+      dispatch(fetchCategories());
+    }
+    // Always fetch addon groups if they haven't been fetched yet
+    // to ensure they are available for the "Add Item" flow
+    if (!addonGroupsFetched) {
       dispatch(fetchAddonGroups());
     }
-  }, [dispatch, activeTab]);
+  }, [dispatch, categoriesFetched, addonGroupsFetched]);
 
   // Fetch items for ALL categories to populate the simplified unified menu view
   useEffect(() => {
     if (categories && categories.length > 0 && activeTab === 'All items') {
-      // Small delay or batch fetch could be better, but for now we fetch all if items are empty
-      if (items.length === 0 && !loading) {
-        dispatch(fetchItems({})); // Fetching without categoryId should return all items for the restaurant if API supports it
+      // Fetch all items if they haven't been fetched yet
+      if (!itemsFetched && !loading) {
+        dispatch(fetchItems({}));
       }
     }
-  }, [categories, dispatch, loading, items.length, activeTab]);
+  }, [categories, dispatch, loading, itemsFetched, activeTab]);
 
-  // Map and group items by category
+  // Map and group items by category (Hierarchical)
   const inventory: InventoryCategory[] = useMemo(() => {
     if (!categories || !Array.isArray(categories)) return [];
 
-    return categories.map(cat => ({
-      id: cat.id,
-      name: cat.name,
-      subtitle: '',
-      isActive: true,
-      items: items
-        .filter(item => item.categoryId === cat.id)
+    // 1. Separate Root Categories from Subcategories
+    const rootCats = categories.filter(cat => cat && !cat.parentCategoryId);
+    const subCats = categories.filter(cat => cat && cat.parentCategoryId);
+
+    // 2. Build the tree
+    return rootCats.map(root => {
+      // Find direct items (those belonging to the root category)
+      const directItems = (items || [])
+        .filter(item => item && item.categoryId === root.id)
         .map(item => ({
           id: item.id,
           name: item.name,
           isVeg: item.foodType === 'VEG',
-          isInStock: item.status === 'AVAILABLE',
+          isInStock: item.status !== 'HIDDEN', // Toggle ON for AVAILABLE/SOLD_OUT
           price: item.variants?.[0]?.price || 0,
           description: item.description,
-          status: item.status === 'AVAILABLE' ? 'live' : 'not-live',
+          imageUrl: item.imageUrl,
+          status: (item.status === 'HIDDEN' ? 'not-live' : (item.imageUrl ? 'live' : 'no-photo')) as any,
+          backendStatus: item.status, // Preserve real status
+        }));
+
+      // Find children categories and their items
+      const children = subCats
+        .filter(sc => sc.parentCategoryId === root.id)
+        .map(sc => ({
+          id: sc.id,
+          name: sc.name,
+          items: (items || [])
+            .filter(item => item && item.categoryId === sc.id)
+            .map(item => ({
+              id: item.id,
+              name: item.name,
+              isVeg: item.foodType === 'VEG',
+              isInStock: item.status !== 'HIDDEN',
+              price: item.variants?.[0]?.price || 0,
+              description: item.description,
+              imageUrl: item.imageUrl,
+              status: (item.status === 'HIDDEN' ? 'not-live' : (item.imageUrl ? 'live' : 'no-photo')) as any,
+              backendStatus: item.status,
+            }))
         }))
-    }));
+        .filter(sc => sc.items.length > 0 || true); // Keep if it has items or just for structure
+
+      return {
+        id: root.id,
+        name: root.name,
+        subtitle: '',
+        isActive: root.status === 'ACTIVE',
+        items: directItems,
+        subCategories: children
+      };
+    });
   }, [categories, items]);
 
   useEffect(() => {
@@ -119,8 +158,10 @@ export default function CatalogScreen() {
   const [errorModal, setErrorModal] = useState({ visible: false, title: '', message: '' });
 
   const handleToggleCategory = (catId: string, isActive: boolean) => {
-    // Category-wide toggle logic can go here if needed
-    console.log('Toggle category:', catId, isActive);
+    dispatch(updateCategory({ 
+      id: catId, 
+      details: { status: isActive ? 'ACTIVE' as any : 'INACTIVE' as any } 
+    }));
   };
 
   const handleDeleteCategory = (id: string) => {
@@ -138,11 +179,11 @@ export default function CatalogScreen() {
     if (deleteCategory.rejected.match(result)) {
       const errorData = result.payload as any;
       if (errorData?.data?.totalItems > 0) {
-        setPendingDeleteMessage(errorData.message || 'This category has items.');
+        setPendingDeleteMessage((typeof errorData === 'string' ? errorData : errorData?.message) || 'This category has items.');
         setShowDeleteConfirm(false);
         setTimeout(() => setShowBulkDeleteConfirm(true), 300);
       } else {
-        setErrorModal({ visible: true, title: 'Error', message: errorData?.message || 'Failed to delete category' });
+        setErrorModal({ visible: true, title: 'Error', message: (typeof errorData === 'string' ? errorData : errorData?.message) || errorData?.error || 'Failed to delete category' });
       }
     } else {
       setShowDeleteConfirm(false);
@@ -157,23 +198,18 @@ export default function CatalogScreen() {
       await dispatch(createCategory({ name })).unwrap();
       setShowCreateCategoryModal(false);
     } catch (error: any) {
-      setErrorModal({ visible: true, title: 'Error', message: error?.message || 'Failed to create category' });
+      setErrorModal({ visible: true, title: 'Error', message: error || error?.message || 'Failed to create category' });
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleToggleItemStatus = (catId: string, itemId: string, isInStock: boolean) => {
-    const item = items.find(i => i.id === itemId);
-    if (!isInStock && item) { // Turning OFF/Pausing
-      setActiveItem({ ...item, catId });
-      setSheetType('item');
-      setShowStockSheet(true);
-      return;
-    }
-
-    // Turning ON
-    dispatch(updateItemStatus({ id: itemId, status: MenuItemStatus.AVAILABLE }));
+  const handleToggleItemStatus = (catId: string, itemId: string, isLive: boolean) => {
+    // Toggling Visibility (Live vs Hidden)
+    dispatch(updateItemStatus({ 
+      id: itemId, 
+      status: isLive ? MenuItemStatus.AVAILABLE : MenuItemStatus.HIDDEN 
+    }));
   };
 
   return (
@@ -257,7 +293,7 @@ export default function CatalogScreen() {
           /* Add-ons Tab Content */
           <View style={{ padding: 16 }}>
             {addonGroups && addonGroups.length > 0 ? (
-              addonGroups.map(group => (
+              addonGroups.filter(g => !!g).map(group => (
                 <Pressable 
                   key={group.id} 
                   onPress={() => router.push({ pathname: '/menu/addon-group-details', params: { id: group.id } })}
@@ -277,16 +313,17 @@ export default function CatalogScreen() {
                       <ThemedText style={{ color: theme.primary, fontSize: 12, fontWeight: '700' }}>Edit</ThemedText>
                     </View>
                   </View>
-                  {group.addons && group.addons.length > 0 && (
+                  {(group.addons || []).length > 0 && (
                     <View style={{ marginTop: 12, gap: 4 }}>
-                      {group.addons.slice(0, 3).map((addon, idx) => (
-                        <ThemedText key={idx} style={{ fontSize: 12, color: theme.textSecondary }}>
-                          • {addon.name} (₹{addon.price})
-                        </ThemedText>
+                      {(group.addons || []).slice(0, 3).map((addon: any, idx: number) => (
+                        <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: theme.textSecondary }} />
+                          <ThemedText style={{ fontSize: 13, color: theme.textSecondary }}>{addon.name}</ThemedText>
+                        </View>
                       ))}
-                      {group.addons.length > 3 && (
-                        <ThemedText style={{ fontSize: 11, color: theme.textSecondary, fontStyle: 'italic' }}>
-                          + {group.addons.length - 3} more items
+                      {(group.addons || []).length > 3 && (
+                        <ThemedText style={{ fontSize: 11, color: theme.primary, fontWeight: '700', marginLeft: 10 }}>
+                          +{(group.addons || []).length - 3} MORE
                         </ThemedText>
                       )}
                     </View>
@@ -323,7 +360,7 @@ export default function CatalogScreen() {
 
       <CategoriesBottomSheet
         visible={categoriesSheetVisible}
-        categories={inventory.map(c => ({ id: c.id, name: c.name, count: c.items.length }))}
+        categories={(inventory || []).map(c => ({ id: c.id, name: c.name, count: (c.items || []).length }))}
         activeCategoryId={activeCategoryId || ''}
         onClose={() => setCategoriesSheetVisible(false)}
         onSelectCategory={(id) => setActiveCategoryId(id)}

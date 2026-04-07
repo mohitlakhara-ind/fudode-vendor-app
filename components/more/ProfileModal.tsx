@@ -8,11 +8,11 @@ import { useAppDispatch } from '@/store/hooks';
 import { logout } from '@/store/slices/authSlice';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { LogoutConfirmationModal } from './LogoutConfirmationModal';
 
 interface ProfileModalProps {
   visible: boolean;
   onClose: () => void;
+  onLogoutPress: () => void;
   userData: {
     name: string;
     phone: string;
@@ -22,19 +22,9 @@ interface ProfileModalProps {
   };
 }
 
-export const ProfileModal = ({ visible, onClose, userData }: ProfileModalProps) => {
+export const ProfileModal = ({ visible, onClose, userData, onLogoutPress }: ProfileModalProps) => {
   const { colorScheme } = useAppTheme();
   const theme = Colors[colorScheme];
-  const dispatch = useAppDispatch();
-  const router = useRouter();
-  const [logoutVisible, setLogoutVisible] = useState(false);
-
-  const handleLogout = () => {
-    dispatch(logout());
-    setLogoutVisible(false);
-    onClose();
-    router.replace('/(auth)/login');
-  };
 
   const avatarSource = typeof userData.avatar === 'string' 
     ? { uri: userData.avatar } 
@@ -71,7 +61,7 @@ export const ProfileModal = ({ visible, onClose, userData }: ProfileModalProps) 
       <View style={styles.actionButtons}>
         <Pressable 
           style={[styles.actionButton, { backgroundColor: theme.secondary }]}
-          onPress={() => setLogoutVisible(true)}
+          onPress={onLogoutPress}
         >
           <SignOut size={20} weight="bold" color="#FFF" style={{ marginRight: 8 }} />
           <Text style={styles.actionButtonText}>Logout</Text>
@@ -79,7 +69,7 @@ export const ProfileModal = ({ visible, onClose, userData }: ProfileModalProps) 
 
         <Pressable 
           style={[styles.outlineButton, { borderColor: theme.secondary }]}
-          onPress={() => setLogoutVisible(true)}
+          onPress={onLogoutPress}
         >
           <Devices size={20} weight="bold" color={theme.secondary} style={{ marginRight: 8 }} />
           <Text style={[styles.outlineButtonText, { color: theme.secondary }]}>Logout from all devices</Text>
@@ -87,18 +77,12 @@ export const ProfileModal = ({ visible, onClose, userData }: ProfileModalProps) 
 
         <Pressable 
           style={[styles.outlineButton, { borderColor: theme.secondary }]}
-          onPress={() => setLogoutVisible(true)}
+          onPress={onLogoutPress}
         >
           <Users size={20} weight="bold" color={theme.secondary} style={{ marginRight: 8 }} />
           <Text style={[styles.outlineButtonText, { color: theme.secondary }]}>Logout all users and devices</Text>
         </Pressable>
       </View>
-
-      <LogoutConfirmationModal
-        visible={logoutVisible}
-        onClose={() => setLogoutVisible(false)}
-        onConfirm={handleLogout}
-      />
     </ModalWrapper>
   );
 };

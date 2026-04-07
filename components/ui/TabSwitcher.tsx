@@ -27,7 +27,7 @@ export const TabSwitcher = ({ tabs, counts, activeTab, onTabChange, containerSty
   });
 
   return (
-    <View style={[styles.tabsContainer, { backgroundColor: theme.surfaceSecondary + '50' }, containerStyle]}>
+    <View style={[styles.tabsContainer, { backgroundColor: theme.surfaceSecondary }, containerStyle]}>
       <Animated.View 
         style={[
           styles.activeIndicator, 
@@ -35,10 +35,10 @@ export const TabSwitcher = ({ tabs, counts, activeTab, onTabChange, containerSty
             backgroundColor: theme.surface,
             borderColor: theme.border,
             shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 2,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.15,
+            shadowRadius: 10,
+            elevation: 4,
           },
           indicatorStyle
         ]} 

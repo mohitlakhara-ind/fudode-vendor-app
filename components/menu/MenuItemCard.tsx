@@ -8,9 +8,9 @@ import { ThemedText } from '@/components/themed-text';
 import { PremiumSwitch } from '@/components/ui/PremiumSwitch';
 
 interface MenuItemCardProps {
-  item: InventoryItem;
+  item: any; // Using any for now to handle backendStatus
   onToggleStock?: (id: string, inStock: boolean) => void;
-  onEdit?: (item: InventoryItem) => void;
+  onEdit?: (item: any) => void;
 }
 
 export const MenuItemCard = ({ item, onToggleStock, onEdit }: MenuItemCardProps) => {
@@ -58,7 +58,11 @@ export const MenuItemCard = ({ item, onToggleStock, onEdit }: MenuItemCardProps)
         <View style={styles.itemRight}>
           <View style={[styles.imageArea, { backgroundColor: theme.surfaceSecondary }]}>
             {item.imageUrl ? (
-              <Image source={{ uri: item.imageUrl }} style={[styles.itemImage, !item.isInStock && { opacity: 0.5 }]} resizeMode="cover" />
+              <Image 
+                source={{ uri: item.imageUrl }} 
+                style={[styles.itemImage, item.backendStatus === 'SOLD_OUT' && { opacity: 0.5 }]} 
+                resizeMode="cover" 
+              />
             ) : (
               <View style={styles.addPhotoPlaceholder}>
                 <Camera size={26} color={theme.info} weight="bold" />
@@ -74,7 +78,7 @@ export const MenuItemCard = ({ item, onToggleStock, onEdit }: MenuItemCardProps)
               </View>
             )}
 
-            {!item.isInStock && (
+            {item.backendStatus === 'SOLD_OUT' && (
               <View style={[styles.outOfStockOverlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
                 <ThemedText style={[styles.outOfStockOverlayText, { color: '#FFF' }]}>PAUSED</ThemedText>
               </View>
@@ -93,7 +97,7 @@ export const MenuItemCard = ({ item, onToggleStock, onEdit }: MenuItemCardProps)
         <View style={styles.actionRight}>
           <View style={styles.stockControl}>
             <ThemedText style={[styles.inStockLabel, { color: theme.textSecondary }]}>
-              {item.isInStock ? 'In stock' : 'Out of stock'}
+              {item.isInStock ? 'Live' : 'Hidden'}
             </ThemedText>
             <PremiumSwitch 
               value={item.isInStock} 

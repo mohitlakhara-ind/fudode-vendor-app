@@ -73,7 +73,7 @@ The platform uses a tiered authentication model. Initial login provides a **User
 
 ### 1.5 Logout
 `POST /restaurant/auth/logout`
-- **Headers**: `Authorization: Bearer <Any Token>`
+- **Headers**: `Authorization: Bearer <User Token>` (Requires standard User Token)
 - **Body**:
   ```json
   { "deviceId": "..." }
@@ -98,13 +98,24 @@ The platform uses a tiered authentication model. Initial login provides a **User
   - `aadhaarBack`: Document Image
 - **Response**: `{ "status": true, "profileData": { ... } }`
 
+### 2.2 Get Owner Profile
+`GET /restaurant/profile/get`
+- **Headers**: `Authorization: Bearer <User Token>`
+- **Response (200 OK)**:
+  ```json
+  {
+    "status": true,
+    "data": { "id": "...", "name": "...", "email": "...", ... }
+  }
+  ```
+
 ---
 
 ## 3. Restaurant Onboarding Flow (`/restaurant/onboard`)
 
 ### Step 1: Basic Identity
-`POST /restaurant/onboard/step-1`
-- **Token**: User Token
+`POST /restaurant/onboard/step-1` | `PUT /restaurant/onboard/update-step-1`
+- **Token**: User Token (for POST), Restaurant Scoped Token (for PUT)
 - **Body**:
   ```json
   {
@@ -119,7 +130,8 @@ The platform uses a tiered authentication model. Initial login provides a **User
     "landMark": "Near Metro"
   }
   ```
-- **Note**: After this step, you **must** call `/auth/update` to get a Scoped Token for the next steps.
+- **Fetch Detail**: `GET /restaurant/onboard/get-step-1`
+- **Note**: After the initial POST, you **must** call `/auth/update` to get a Scoped Token for subsequent steps.
 
 ### Step 2: KYC & Payout
 `POST /restaurant/onboard/step-2`
@@ -139,11 +151,13 @@ The platform uses a tiered authentication model. Initial login provides a **User
     "upiId": "..."       // Required if UPI
   }
   ```
+- **Fetch Detail**: `GET /restaurant/onboard/get-step-2`
 
 ### Step 3: Contract Acceptance
 `POST /restaurant/onboard/step-3`
 - **Token**: Restaurant Scoped Token
 - **Pre-requisite**: Fetch contract via `GET /restaurant/onboard/get-partener-contract`.
+- **Fetch Detail**: `GET /restaurant/onboard/get-step-3`
 - **Body**:
   ```json
   {
@@ -167,27 +181,139 @@ The platform uses a tiered authentication model. Initial login provides a **User
 - **Reorder**: `PATCH /categories/reorder` | Body: `{ "categories": ["id1", "id2"], "parentCategoryId?": null }`
 
 ### 4.2 Menu Items
-- **Create**: `POST /items`
+
+*All Menu Item APIs require a **Restaurant Scoped Token**.*
+
+#### 4.2.1 Create Menu Item (`POST /items`)
+
+Registers a new menu item with associated variants, tags, and addon groups.
+
+- **Endpoint**: `POST /restaurant/menu/items`
+- **Method**: `POST`
+- **Authentication**: `Authorization: Bearer <Restaurant Scoped Token>`
+- **Request Body Fields**:
+
+| Field | Type | Required | Description / Constraints |
+| :--- | :--- | :--- | :--- |
+| `categoryId` | `UUID` | **Yes** | Valid UUID of an active category owned by the restaurant. |
+| `name` | `String` | **Yes** | 2-120 characters. Trimmed and sanitized. |
+| `description` | `String` | **Yes** | 5-500 characters. Sanitized. |
+| `foodType` | `Enum` | **Yes** | One of: `VEG`, `NON_VEG`, `EGG`. |
+| `prepTime` | `Int` | **Yes** | 0 to 300 minutes. |
+| `imageUrl` | `String` | No | Valid image URL (must be a valid URL format). |
+| `tags` | `Array` | No | Enums: `BESTSELLER`, `SPICY`, `NEW`, `CHEF_SPECIAL`. |
+| `variants` | `Array` | **Yes** | Array of variant objects (1-20). |
+| `addonGroupIds` | `Array` | No | Array of valid Addon Group UUIDs. |
+| `nutrients` | `Object` | No | Nutritional data (see structure below). |
+
+---
+
+**Nested Object: Variants**
+Each item must have at least one variant (e.g., "Regular").
+- `name`: String (1-50, unique within item).
+- `price`: Number (>0).
+- `isDefault`: Boolean (Exactly **one** variant must be `true`).
+
+---
+
+**Nested Object: Nutrients (JSON)**
+Optional but requires specific units if provided.
+- `serving`: `{ "value": 100, "unit": "g" | "ml" }`
+- `calories`: `{ "value": 500, "unit": "kcal" }`
+- `protein` / `carbs` / `fat` / `fibre`: `{ "value": 10, "unit": "g" | "mg" }`
+
+---
+
+**Example Request Payload**:
+```json
+{
+  "categoryId": "2919d854-c92c-4613-88e9-d456789abcde",
+  "name": "Classic Margherita Pizza",
+  "description": "Authentic sourdough crust, San Marzano tomato sauce, fresh mozzarella.",
+  "foodType": "VEG",
+  "prepTime": 15,
+  "imageUrl": "https://cdn.fudode.com/images/pizza.jpg",
+  "tags": ["BESTSELLER", "NEW"],
+  "variants": [
+    { "name": "Regular", "price": 299, "isDefault": true },
+    { "name": "Large", "price": 499, "isDefault": false }
+  ],
+  "addonGroupIds": ["fd987654-0000-1111-2222-333344445555"],
+  "nutrients": {
+    "serving": { "value": 250, "unit": "g" },
+    "calories": { "value": 650, "unit": "kcal" }
+  }
+}
+```
+
+---
+
+#### 4.2.2 Deleting Menu Item (`DELETE /items/:id`)
+
+Removes a menu item permanently from the catalog.
+
+> [!CAUTION]
+> This is a **Hard Delete**. Once performed, the item, its variants, and its verification history are permanently removed. This action **cannot be undone**.
+
+- **Endpoint**: `DELETE /restaurant/menu/items/:id`
+- **Method**: `DELETE`
+- **Authentication**: `Authorization: Bearer <Restaurant Scoped Token>`
+- **Response (200 OK)**:
   ```json
   {
-    "categoryId": "...",
-    "name": "Margherita Pizza",
-    "description": "Cheese & Tomato",
-    "foodType": "VEG" | "NON_VEG" | "EGG",
-    "prepTime": 15,
-    "imageUrl": "...",
-    "variants": [
-      { "name": "Regular", "price": 299, "isDefault": true },
-      { "name": "Large", "price": 499, "isDefault": false }
-    ],
-    "tags": ["BESTSELLER", "NEW"],
-    "addonGroupIds": ["addon_id_1"]
+    "message": "Menu item deleted successfully",
+    "data": { ... }
   }
   ```
-- **List All**: `GET /items?categoryId=...&page=1&limit=20`
-- **Get Detail**: `GET /items/:id`
-- **Update Status**: `PATCH /items/status` | Body: `{ "id": "...", "status": "AVAILABLE" | "SOLD_OUT" | "HIDDEN" }`
-- **Update Item**: `PATCH /items/:id` (Same body as create, except `categoryId` and `name` are immutable).
+
+---
+
+#### 4.2.3 Updating Item Status (`PATCH /items/status`)
+
+Used for quick availability changes (e.g., marking an item as Sold Out during a rush).
+
+- **Endpoint**: `PATCH /restaurant/menu/items/status`
+- **Method**: `PATCH`
+- **Authentication**: `Authorization: Bearer <Restaurant Scoped Token>`
+- **Body**:
+  ```json
+  {
+    "id": "ITEM_UUID",
+    "status": "AVAILABLE" | "SOLD_OUT" | "HIDDEN"
+  }
+  ```
+- **Note**: This update is **immediate** and does not require admin verification.
+
+---
+
+#### 4.2.4 Comprehensive Item Update (`PATCH /items/:id`)
+
+Updates item details, variants, and addon groups.
+
+- **Endpoint**: `PATCH /restaurant/menu/items/:id`
+- **Method**: `PATCH`
+- **Authentication**: `Authorization: Bearer <Restaurant Scoped Token>`
+- **Body**: Same as **Create Item** (see 4.2.1), with the following specific constraints:
+
+> [!IMPORTANT]
+> **Verification Workflow**: Any update using this endpoint sets the item's `verificationStatus` to **`PENDING`**. The changes will **not reflect** on the customer-facing menu until an admin approves the update. During this time, the previous approved version of the item remains visible.
+
+> [!WARNING]
+> **Immutable Fields**: The `categoryId` and `name` are immutable for existing items. To change these, you must delete the item and create a new one.
+
+- **Replacement Logic**: The `variants` and `addonGroupIds` arrays are **fully replaced**. You must send the entire desired state for these fields; any variant or addon group omitted from the payload will be removed from the item.
+- **Example**: Sending only one variant in an update will delete all other existing variants for that item.
+
+---
+
+#### 4.2.5 Querying & Reordering Items
+- **List All**: `GET /restaurant/menu/items?categoryId=...&page=1&limit=20`
+- **Get Detail**: `GET /restaurant/menu/items/:id` (Includes categories, variants, and addon groups)
+- **Reorder Items**: `PATCH /restaurant/menu/items/reorder`
+  - Body: `{ "categoryId": "...", "items": ["id1", "id2", ...] }`
+- **Reorder Variants**: `PATCH /restaurant/menu/variants/reorder`
+  - Body: `{ "itemId": "...", "variants": ["id1", "id2", ...] }`
+
 
 ### 4.3 Addon Groups
 - **Create**: `POST /addon-groups`
@@ -200,8 +326,39 @@ The platform uses a tiered authentication model. Initial login provides a **User
   }
   ```
 - **List All**: `GET /addon-groups`
+- **Get Detail**: `GET /addon-groups/:id` (Returns group details with all options)
 - **Update**: `PATCH /addon-groups/:id`
 - **Delete**: `DELETE /addon-groups/:id` (Blocked if linked to items)
+
+### 4.4 Addon Options
+- **Create**: `POST /addon-groups/:groupId/options`
+  ```json
+  {
+    "name": "Extra Cheese",
+    "price": 50,
+    "minQuantity": 0,
+    "maxQuantity": 1
+  }
+  ```
+- **List Options**: `GET /addon-groups/:groupId/options`
+- **Update Option**: `PATCH /addon-groups/:optionId/options`
+  ```json
+  {
+    "name": "Extra Cheese",
+    "price": 60,
+    "status": "AVAILABLE" | "SOLD_OUT",
+    "minQuantity": 0,
+    "maxQuantity": 1
+  }
+  ```
+- **Delete Option**: `DELETE /addon-groups/:optionId/options` (Soft delete)
+- **Reorder Options**: `PATCH /addon-groups/reorder/options`
+  ```json
+  {
+    "groupId": "...",
+    "orderedOptionIds": ["id1", "id2", ...]
+  }
+  ```
 
 ---
 

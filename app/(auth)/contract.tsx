@@ -212,7 +212,6 @@ export default function ContractScreen() {
 
             <View 
               style={[styles.markdownContainer, { backgroundColor: theme.surfaceSecondary, borderColor: theme.border }]}
-              renderToHardwareTextureAndroid={true}
             >
               <Markdown style={{
                 body: { color: theme.text, fontSize: 14, lineHeight: 22 },

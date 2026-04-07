@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CaretLeft, CaretRight, Plus, FolderOpen } from 'phosphor-react-native';
@@ -40,6 +40,9 @@ export default function AddItemCategoryScreen() {
       .unwrap()
       .then(() => {
         setShowCreateModal(false);
+      })
+      .catch((err: any) => {
+        Alert.alert('Error', err || 'Failed to create category');
       })
       .finally(() => {
         setIsCreating(false);

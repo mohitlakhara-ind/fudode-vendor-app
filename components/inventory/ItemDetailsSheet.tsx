@@ -13,10 +13,10 @@ interface ItemDetailsSheetProps {
   item?: {
     id: string;
     name: string;
-    price: string;
+    price: number;
     description?: string;
     isInStock: boolean;
-    image?: string;
+    imageUrl?: string;
   };
   onToggleStock: (inStock: boolean) => void;
 }
@@ -42,8 +42,8 @@ export const ItemDetailsSheet = ({
       <View style={styles.container}>
         {/* Item Image / Placeholder */}
         <View style={[styles.imageArea, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          {item.image ? (
-            <Image source={{ uri: item.image }} style={styles.image} />
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={styles.image} />
           ) : (
             <View style={styles.placeholderContainer}>
               <View style={styles.patternRow}>

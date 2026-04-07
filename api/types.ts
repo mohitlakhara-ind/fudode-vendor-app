@@ -151,6 +151,20 @@ export enum MenuItemStatus {
   HIDDEN = 'HIDDEN',
 }
 
+export interface NutrientValue {
+  value: number;
+  unit: string;
+}
+
+export interface Nutrients {
+  serving?: NutrientValue;
+  calories?: NutrientValue;
+  protein?: NutrientValue;
+  carbs?: NutrientValue;
+  fat?: NutrientValue;
+  fibre?: NutrientValue;
+}
+
 export interface MenuItem {
   id: string;
   categoryId: string;
@@ -162,6 +176,7 @@ export interface MenuItem {
   variants: MenuVariant[];
   tags?: string[];
   addonGroupIds?: string[];
+  nutrients?: Nutrients;
   status: MenuItemStatus;
   sortOrder: number;
   isLive: boolean;
@@ -190,6 +205,7 @@ export interface ItemCreateRequest {
   variants: MenuVariant[];
   tags: string[];
   addonGroupIds: string[];
+  nutrients?: Nutrients;
 }
 
 export interface ItemUpdateRequest extends Partial<Omit<ItemCreateRequest, 'categoryId' | 'name'>> {}
@@ -197,6 +213,16 @@ export interface ItemUpdateRequest extends Partial<Omit<ItemCreateRequest, 'cate
 export interface ItemStatusUpdate {
   id: string;
   status: MenuItemStatus;
+}
+
+export interface ItemReorderRequest {
+  categoryId: string;
+  items: string[];
+}
+
+export interface VariantReorderRequest {
+  itemId: string;
+  variants: string[];
 }
 
 export interface Addon {
@@ -221,6 +247,22 @@ export interface AddonGroupCreateRequest {
   maxSelect: number;
   isRequired: boolean;
   addons: Omit<Addon, 'id'>[];
+}
+
+export interface AddonOptionCreateRequest {
+  name: string;
+  price: number;
+  minQuantity: number;
+  maxQuantity: number;
+}
+
+export interface AddonOptionUpdateRequest extends Partial<AddonOptionCreateRequest> {
+  status?: 'AVAILABLE' | 'SOLD_OUT';
+}
+
+export interface AddonOptionReorderRequest {
+  groupId: string;
+  orderedOptionIds: string[];
 }
 
 export interface KycOverallStatus {
